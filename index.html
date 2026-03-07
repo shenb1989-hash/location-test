@@ -5,6 +5,46 @@
 <title>即時天氣</title>
 
 <style>
+  .sun{
+width:80px;
+height:80px;
+background:yellow;
+border-radius:50%;
+margin:20px auto;
+box-shadow:0 0 40px yellow;
+animation:spin 8s linear infinite;
+}
+
+@keyframes spin{
+from{transform:rotate(0deg);}
+to{transform:rotate(360deg);}
+}
+
+.cloud{
+width:120px;
+height:40px;
+background:white;
+border-radius:40px;
+margin:20px auto;
+position:relative;
+animation:cloudMove 5s infinite alternate;
+}
+
+.cloud:before{
+content:"";
+position:absolute;
+width:60px;
+height:60px;
+background:white;
+border-radius:50%;
+top:-30px;
+left:10px;
+}
+
+@keyframes cloudMove{
+from{transform:translateX(-10px);}
+to{transform:translateX(10px);}
+}
 body{
 font-family: Arial;
 background: linear-gradient(#6ec6ff,#b3e5fc);
