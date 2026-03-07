@@ -5,7 +5,46 @@
 <title>即時天氣</title>
 
 <style>
-  .sun{
+
+body{
+font-family: Arial;
+background: linear-gradient(#6ec6ff,#b3e5fc);
+text-align:center;
+padding-top:80px;
+}
+
+/* 天氣卡片 */
+.weather-box{
+background:white;
+width:300px;
+margin:auto;
+padding:20px;
+border-radius:15px;
+box-shadow:0 5px 20px rgba(0,0,0,0.2);
+}
+
+/* 按鈕 */
+button{
+padding:10px 20px;
+font-size:16px;
+border:none;
+border-radius:10px;
+background:#2196f3;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#1976d2;
+}
+
+#status{
+margin-top:20px;
+font-size:18px;
+}
+
+/* 太陽動畫 */
+.sun{
 width:80px;
 height:80px;
 background:yellow;
@@ -20,6 +59,7 @@ from{transform:rotate(0deg);}
 to{transform:rotate(360deg);}
 }
 
+/* 雲動畫 */
 .cloud{
 width:120px;
 height:40px;
@@ -45,40 +85,7 @@ left:10px;
 from{transform:translateX(-10px);}
 to{transform:translateX(10px);}
 }
-body{
-font-family: Arial;
-background: linear-gradient(#6ec6ff,#b3e5fc);
-text-align:center;
-padding-top:80px;
-}
 
-.weather-box{
-background:white;
-width:300px;
-margin:auto;
-padding:20px;
-border-radius:15px;
-box-shadow:0 5px 20px rgba(0,0,0,0.2);
-}
-
-button{
-padding:10px 20px;
-font-size:16px;
-border:none;
-border-radius:10px;
-background:#2196f3;
-color:white;
-cursor:pointer;
-}
-
-button:hover{
-background:#1976d2;
-}
-
-#status{
-margin-top:20px;
-font-size:18px;
-}
 </style>
 
 </head>
@@ -86,6 +93,9 @@ font-size:18px;
 <body>
 
 <div class="weather-box">
+
+<div class="sun"></div>
+<div class="cloud"></div>
 
 <h2>🌤 即時天氣查詢</h2>
 
