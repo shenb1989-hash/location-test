@@ -7,81 +7,88 @@
 <style>
 
 body{
-font-family: Arial;
+font-family:Arial;
 text-align:center;
 padding-top:80px;
 overflow:hidden;
 
-/* 動態天空 */
-background: linear-gradient(270deg,#6ec6ff,#b3e5fc,#6ec6ff);
-background-size:600% 600%;
-animation:skyMove 15s ease infinite;
+/* 更真實天空 */
+background:linear-gradient(-45deg,#4fc3f7,#81d4fa,#b3e5fc,#4fc3f7,#29b6f6);
+background-size:500% 500%;
+animation:skyFlow 25s ease infinite;
 }
 
-@keyframes skyMove{
+/* 天空流動 */
+@keyframes skyFlow{
 0%{background-position:0% 50%;}
 50%{background-position:100% 50%;}
 100%{background-position:0% 50%;}
 }
 
-/* 天氣卡片 */
+/* 卡片升級 */
 .weather-box{
-background:white;
-width:300px;
+background:rgba(255,255,255,0.92);
+width:320px;
 margin:auto;
-padding:20px;
-border-radius:15px;
-box-shadow:0 5px 20px rgba(0,0,0,0.2);
+padding:25px;
+border-radius:20px;
+backdrop-filter:blur(12px);
+box-shadow:0 20px 60px rgba(0,0,0,0.25);
+animation:cardFloat 6s ease-in-out infinite;
 }
 
-/* 按鈕 */
-button{
-padding:10px 20px;
-font-size:16px;
-border:none;
-border-radius:10px;
-background:#2196f3;
-color:white;
-cursor:pointer;
+/* 卡片漂浮 */
+@keyframes cardFloat{
+0%{transform:translateY(0px);}
+50%{transform:translateY(-12px);}
+100%{transform:translateY(0px);}
 }
 
-button:hover{
-background:#1976d2;
-}
-
-#status{
-margin-top:20px;
-font-size:18px;
-}
-
-/* 太陽動畫 */
+/* 太陽更真實 */
 .sun{
-width:80px;
-height:80px;
-background:yellow;
+width:90px;
+height:90px;
 border-radius:50%;
 margin:20px auto;
-box-shadow:0 0 40px yellow;
-animation:spin 8s linear infinite;
+background:radial-gradient(circle,#fff176,#fdd835,#fbc02d);
+box-shadow:
+0 0 40px #ffeb3b,
+0 0 80px #ffeb3b,
+0 0 120px #ffeb3b;
+animation:sunGlow 4s ease-in-out infinite;
 }
 
-@keyframes spin{
-from{transform:rotate(0deg);}
-to{transform:rotate(360deg);}
+/* 太陽呼吸 */
+@keyframes sunGlow{
+0%{transform:scale(1);}
+50%{transform:scale(1.15);}
+100%{transform:scale(1);}
 }
 
-/* 雲動畫 */
+/* 雲朵 */
 .cloud{
-width:120px;
-height:40px;
+width:140px;
+height:45px;
 background:white;
 border-radius:40px;
 margin:20px auto;
 position:relative;
-animation:cloudMove 5s infinite alternate;
+animation:cloudFloat 6s ease-in-out infinite;
+box-shadow:0 5px 15px rgba(0,0,0,0.1);
 }
 
 .cloud:before{
+content:"";
+position:absolute;
+width:70px;
+height:70px;
+background:white;
+border-radius:50%;
+top:-35px;
+left:15px;
+}
+
+.cloud:after{
 content:"";
 position:absolute;
 width:60px;
@@ -89,12 +96,35 @@ height:60px;
 background:white;
 border-radius:50%;
 top:-30px;
-left:10px;
+left:60px;
 }
 
-@keyframes cloudMove{
-from{transform:translateX(-10px);}
-to{transform:translateX(10px);}
+@keyframes cloudFloat{
+0%{transform:translateX(-15px);}
+50%{transform:translateX(15px);}
+100%{transform:translateX(-15px);}
+}
+
+/* 按鈕升級 */
+button{
+padding:12px 25px;
+font-size:16px;
+border:none;
+border-radius:12px;
+background:linear-gradient(45deg,#42a5f5,#1e88e5);
+color:white;
+cursor:pointer;
+transition:0.3s;
+}
+
+button:hover{
+transform:scale(1.07);
+box-shadow:0 10px 25px rgba(0,0,0,0.3);
+}
+
+#status{
+margin-top:20px;
+font-size:18px;
 }
 
 </style>
