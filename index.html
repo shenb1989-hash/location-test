@@ -1,124 +1,65 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>相機錄影與傳送至 Discord</title>
-<style>
-  body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
-  video { width: 90%; max-width: 480px; margin-top: 20px; border-radius: 12px; background: #000; }
-  button { margin: 10px; padding: 10px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; }
-  button:hover { opacity: 0.9; }
-  .btn-cam { background-color: #3498db; color: white; }
-  .btn-start { background-color: #27ae60; color: white; }
-  .btn-stop { background-color: #c0392b; color: white; }
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Camera Demo</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
+        video { width: 90%; max-width: 480px; margin-top: 20px; border-radius: 12px; background: #000; }
+        button { margin: 10px; padding: 10px 16px; font-size: 16px; cursor: pointer; }
+    </style>
 </head>
 <body>
 
-<h2>相機錄影與 DC 機器人</h2>
-<button class="btn-cam" onclick="startCamera('user')">前鏡頭</button>
-<button class="btn-cam" onclick="startCamera('environment')">後鏡頭</button>
-<br>
-<button class="btn-start" id="startBtn" onclick="startRecording()" disabled>開始錄影</button>
-<button class="btn-stop" id="stopBtn" onclick="stopRecording()" disabled>停止錄影及傳送</button>
+    <h2>相機預覽</h2>
+    <button onclick="startCamera('user')">前鏡頭</button>
+    <button onclick="startCamera('environment')">後鏡頭</button>
+    <br>
+    <!-- 新增 muted 屬性以確保在各瀏覽器皆能順利自動播放 -->
+    <video id="video" autoplay playsinline muted></video>
 
-<br>
-<video id="video" autoplay playsinline></video>
+    <script>
+    let currentStream = null;
 
-<script>
-  let currentStream = null;
-  let mediaRecorder = null;
-  let recordedChunks = [];
-  
-  const DISCORD_WEBHOOK = "YOUR_DISCORD_WEBHOOK_URL"; // 請在此填入您的 Discord Webhook
+    async function startCamera(facingMode) {
+        const videoElement = document.getElementById("video");
 
-  async function startCamera(facingMode) {
-    try {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: facingMode } },
-        audio: false
-      });
-      currentStream = stream;
-      document.getElementById("video").srcObject = stream;
-      
-      // 啟用錄影按鈕
-      document.getElementById("startBtn").disabled = false;
-      document.getElementById("stopBtn").disabled = true;
-    } catch (err) {
-      console.error("相機啟動失敗：", err);
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode },
-          audio: false
-        });
+        // 1. 徹底清理舊的串流與視訊源
+        if (currentStream) {
+            currentStream.getTracks().forEach(track => track.stop());
+        }
+        videoElement.srcObject = null; 
+
+        // 2. 嘗試使用 exact 嚴格模式請求鏡頭
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: { exact: facingMode } }, 
+                audio: false 
+            });
+            handleSuccess(stream, videoElement);
+        } catch (err) {
+            console.warn("嚴格模式失敗，嘗試相容模式...", err);
+            
+            // 3. 降級方案（相容桌機或不支援 exact 的行動瀏覽器）
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: facingMode }, 
+                    audio: false 
+                });
+                handleSuccess(stream, videoElement);
+            } catch (e) {
+                console.error("相機完全無法存取：", e);
+                alert("無法存取相機，請檢查權限或是否被其他應用程式佔用。");
+            }
+        }
+    }
+
+    // 成功取得串流後的處理函式
+    function handleSuccess(stream, videoElement) {
         currentStream = stream;
-        document.getElementById("video").srcObject = stream;
-        document.getElementById("startBtn").disabled = false;
-        document.getElementById("stopBtn").disabled = true;
-      } catch (e) {
-        alert("無法存取相機");
-      }
+        videoElement.srcObject = stream;
     }
-  }
-
-  function startRecording() {
-    if (!currentStream) return alert("請先開啟相機！");
-    
-    recordedChunks = [];
-    mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'video/webm' });
-    
-    mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) recordedChunks.push(event.data);
-    };
-    
-    mediaRecorder.onstop = sendToDiscord; // 錄影結束時呼叫傳送函式
-
-    mediaRecorder.start();
-    alert("開始錄影...");
-    
-    document.getElementById("startBtn").disabled = true;
-    document.getElementById("stopBtn").disabled = false;
-  }
-
-  function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== "inactive") {
-      mediaRecorder.stop();
-      alert("錄影結束，處理中...");
-      document.getElementById("startBtn").disabled = false;
-      document.getElementById("stopBtn").disabled = true;
-    }
-  }
-
-  async function sendToDiscord() {
-    if (recordedChunks.length === 0) return;
-    
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const formData = new FormData();
-    // 將錄製好的 blob 檔案命名為 video.webm 加入 FormData
-    formData.append("file", blob, "video.webm"); 
-    formData.append("payload_json", JSON.stringify({ content: "來自網頁的相機錄影畫面！" }));
-
-    try {
-      const response = await fetch(DISCORD_WEBHOOK, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (response.ok) {
-        alert("影片已成功上傳至 Discord！");
-      } else {
-        alert("上傳失敗，請檢查 Webhook URL 是否正確或檔案是否過大。");
-      }
-    } catch (error) {
-      console.error("傳送錯誤:", error);
-      alert("傳送失敗，發生網路錯誤。");
-    }
-  }
-</script>
-
+    </script>
 </body>
 </html>
