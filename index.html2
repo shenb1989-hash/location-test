@@ -1,1 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8">
+    <title>管理後台 - 實時監控</title>
+    <!-- 引入 PeerJS 核心函式庫 -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; text-align: center; padding: 20px; }
+        #remote-video { width: 100%; max-width: 800px; background: #000; border: 3px solid #333; border-radius: 8px; margin-top: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #007bff; color: white; }
+        button:hover { background: #0056b3; }
+        .info { margin-bottom: 15px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>控制後台 - 實時影像接收</h2>
+    <div class="info">目標頻道: <span id="target-id">正在載入...</span></div>
+    <button onclick="connectToTablet()">主動連接平板鏡頭</button>
+    <br>
+    <video id="remote-video" autoplay playsinline></video>
+
+    <script>
+    // 必須與平板端設定完全相同的 ID 才能對接
+    const TARGET_ID = "live-monitor-channel-12345"; 
+    document.getElementById("target-id").innerText = TARGET_ID;
+
+    // 初始化後台的 PeerJS（不指定 ID，讓系統隨機分配一個臨時 ID）
+    const peer = new Peer();
+
+    peer.on('open', function(id) {
+        console.log('後台初始化成功，連線 ID: ' + id);
+    });
+
+    // 點擊按鈕開始連接平板
+    function connectToTablet() {
+        console.log("正在嘗試連接到平板: " + TARGET_ID);
+        
+        // 發起連線呼叫（因為後台只需觀看，不需傳送畫面，所以傳入一個空的 MediaStream 或不傳）
+        // 這裡建立一個虛擬的空串流以符合 API 要求，或者直接呼叫
+        const call = peer.call(TARGET_ID, new MediaStream());
+        
+        // 監聽來自平板回應的視訊串流
+        call.on('stream', function(remoteStream) {
+            console.log("成功接收到平板影像串流");
+            const remoteVideo = document.getElementById("remote-video");
+            remoteVideo.srcObject = remoteStream;
+        });
+
+        call.on('error', function(err) {
+            console.error("連線發生錯誤:", err);
+            alert("連線失敗，請確認平板網頁是否已打開且允許相機權限。");
+        });
+    }
+    </script>
+
+</body>
+</html>
 
