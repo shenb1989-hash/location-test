@@ -2,58 +2,75 @@
 <html lang="zh-TW">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工作站 - 影像傳輸端</title>
-    <!-- 引入 PeerJS 核心函式庫 -->
-    <script src="https://unpkg.com"></script>
+    <!-- 【已徹底修正】引入完整且正確的 PeerJS 核心套件網址 -->
+    <script src="https://jsdelivr.net"></script>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        #preview { width: 100%; max-width: 400px; border: 2px solid #ccc; border-radius: 8px; }
-        .status { color: #666; font-size: 14px; margin-top: 10px; }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f8f9fa; color: #333; }
+        #preview { width: 100%; max-width: 400px; border: 2px solid #ccc; border-radius: 8px; background: #000; }
+        .status { color: #666; font-size: 16px; font-weight: bold; margin-top: 15px; }
+        .btn-start { padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 6px; border: none; background: #007bff; color: white; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <h2>影像傳輸工作站</h2>
+    <!-- 調整：加入一個明確的啟動按鈕，符合現代手機瀏覽器必須由使用者點擊才能開相機的安全規範 -->
+    <button class="btn-start" onclick="initTabletCamera()">點擊啟動相機鏡頭</button>
+    <br>
     <video id="preview" autoplay playsinline muted></video>
-    <p id="status" class="status">正在初始化相機...</p>
+    <p id="status" class="status">等待點擊按鈕初始化...</p>
 
     <script>
-    // 固定的連線頻道 ID，後台端將透過這個 ID 連進來
+    // 固定的連線頻道 ID，必須與接收端完全一致
     const ROOM_ID = "live-monitor-channel-12345"; 
     
-    // 初始化 PeerJS 物件，使用官方免費的雲端伺服器
-    const peer = new Peer(ROOM_ID);
+    // 初始化 PeerJS 物件並配置穿透伺服器
+    const peer = new Peer(ROOM_ID, {
+        config: {
+            iceServers: [
+                { urls: "stun:://google.com" }
+            ]
+        }
+    });
+    
     let localStream = null;
 
-    // 1. 請求相機權限並取得畫面串流
-    navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user" }, // 使用前置鏡頭
-        audio: false                    // 關閉聲音以防回音
-    })
-    .then(function(stream) {
-        localStream = stream;
-        // 將自己的畫面顯示在預覽視窗
-        const videoElement = document.getElementById("preview");
-        videoElement.srcObject = stream;
-        document.getElementById("status").innerText = "相機已就緒，等待後台連線...";
+    // 將開相機的動作綁定在按鈕觸發事件中
+    function initTabletCamera() {
+        document.getElementById("status").innerText = "正在向瀏覽器請求相機權限...";
+        
+        // 1. 請求相機權限並取得畫面串流
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "user" }, // 使用前置鏡頭
+            audio: false                    // 關閉聲音以防回音
+        })
+        .then(function(stream) {
+            localStream = stream;
+            // 將自己的畫面顯示在預覽視窗
+            const videoElement = document.getElementById("preview");
+            videoElement.srcObject = stream;
+            document.getElementById("status").innerText = "相機已就緒！等待後台連線...";
 
-        // 2. 監聽是否有後台端連入
-        peer.on('call', function(call) {
-            document.getElementById("status").innerText = "後台已連線，正在實時傳輸影像...";
-            
-            // 應答連線，並將平板的視訊串流傳送過去
-            call.answer(localStream);
-            
-            // 監聽連線中斷
-            call.on('close', () => {
-                document.getElementById("status").innerText = "後台已中斷連線，等待重新連線...";
+            // 2. 監聽是否有後台端連入
+            peer.on('call', function(call) {
+                document.getElementById("status").innerText = "後台已連線，正在實時傳輸影像...";
+                
+                // 應答連線，並將平板的視訊串流傳送過去
+                call.answer(localStream);
+                
+                // 監聽連線中斷
+                call.on('close', () => {
+                    document.getElementById("status").innerText = "後台已中斷連線，等待重新連線...";
+                });
             });
+        })
+        .catch(function(err) {
+            console.error("無法取得相機權限:", err);
+            document.getElementById("status").innerText = "錯誤：請允許相機權限以進行傳輸。";
         });
-    })
-    .catch(function(err) {
-        console.error("無法取得相機權限:", err);
-        document.getElementById("status").innerText = "錯誤：請允許相機權限以進行傳輸。";
-    });
+    }
 
     peer.on('error', function(err) {
         console.error("PeerJS 錯誤:", err);
