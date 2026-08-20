@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>給廖唯希</title>
 
 <style>
@@ -10,145 +11,406 @@
     box-sizing: border-box;
 }
 
+html,
 body {
     margin: 0;
-    height: 100vh;
-    overflow: hidden;
-    font-family: Arial, "Microsoft JhengHei", sans-serif;
-    background: linear-gradient(135deg, #ffb6d9, #ff82b5);
+    min-height: 100%;
+}
+
+body {
+    font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Microsoft JhengHei",
+        sans-serif;
+
+    background:
+        radial-gradient(circle at 20% 20%, #ffdce9 0%, transparent 35%),
+        radial-gradient(circle at 80% 80%, #ff9fc5 0%, transparent 40%),
+        linear-gradient(135deg, #ffb7d8, #ff6fa8);
+
     color: white;
+    overflow-x: hidden;
 }
 
 .page {
+    min-height: 100vh;
     width: 100%;
-    height: 100%;
+
     display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
+
     position: relative;
     overflow: hidden;
 }
 
+.start {
+    text-align: center;
+    z-index: 5;
+
+    animation: fadeIn 1.5s ease;
+}
+
+.small-title {
+    font-size: 13px;
+    letter-spacing: 6px;
+    opacity: .75;
+    margin-bottom: 20px;
+}
+
 .title {
-    font-size: 45px;
+    font-size: clamp(35px, 8vw, 60px);
     font-weight: bold;
-    margin-bottom: 15px;
+    letter-spacing: 3px;
+    margin-bottom: 18px;
+
+    text-shadow:
+        0 5px 30px rgba(255,255,255,.35);
 }
 
-.text {
-    font-size: 20px;
-    margin-bottom: 40px;
+.subtitle {
+    font-size: 17px;
+    letter-spacing: 2px;
+    opacity: .9;
+    margin-bottom: 45px;
 }
 
-button {
-    width: 180px;
-    height: 180px;
+.start-button {
+    width: 175px;
+    height: 175px;
+
     border-radius: 50%;
-    border: 3px solid white;
-    background: linear-gradient(145deg, #ffb8d5, #ff5f9d);
+
+    border: 1px solid rgba(255,255,255,.8);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.35),
+            rgba(255,70,140,.55)
+        );
+
     color: white;
-    font-size: 35px;
+
+    font-size: 24px;
     font-weight: bold;
+
+    letter-spacing: 3px;
+
     cursor: pointer;
-    box-shadow: 0 0 40px rgba(255,255,255,.5);
+
+    box-shadow:
+        0 0 0 10px rgba(255,255,255,.05),
+        0 0 55px rgba(255,255,255,.5),
+        inset 0 0 35px rgba(255,255,255,.2);
+
+    backdrop-filter: blur(12px);
+
+    transition:
+        transform .3s ease,
+        box-shadow .3s ease;
 }
 
-button:active {
-    transform: scale(.9);
+.start-button:hover {
+    transform: scale(1.06);
+
+    box-shadow:
+        0 0 0 15px rgba(255,255,255,.05),
+        0 0 75px rgba(255,255,255,.7),
+        inset 0 0 40px rgba(255,255,255,.3);
 }
 
-.heart {
-    position: absolute;
-    font-size: 30px;
-    animation: float 5s infinite ease-in-out;
-    opacity: .7;
+.start-button:active {
+    transform: scale(.93);
 }
 
 .final {
-    position: absolute;
-    width: 100%;
-    height: 100%;
     display: none;
+
+    width: 100%;
+    min-height: 100vh;
+
+    padding: 70px 20px;
+
     justify-content: center;
     align-items: center;
+
     flex-direction: column;
+
+    position: relative;
+
+    animation: finalIn 1.5s ease;
 }
 
-.big-heart {
-    font-size: 220px;
-    color: #ff4f91;
-    text-shadow: 0 0 40px white;
-    animation: heart 1s infinite;
+.heart-symbol {
+    font-size: 95px;
+
+    margin-bottom: 25px;
+
+    filter:
+        drop-shadow(0 0 25px rgba(255,255,255,.8));
+
+    animation: heartbeat 1.8s infinite ease-in-out;
+}
+
+.card {
+    width: min(900px, 94vw);
+
+    padding: 50px 45px;
+
+    border-radius: 32px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,.23),
+            rgba(255,255,255,.08)
+        );
+
+    border: 1px solid rgba(255,255,255,.4);
+
+    backdrop-filter: blur(22px);
+
+    box-shadow:
+        0 25px 90px rgba(120,30,70,.28),
+        inset 0 1px 0 rgba(255,255,255,.45);
+
+    text-align: center;
+
+    position: relative;
+}
+
+.card::before {
+    content: "♥";
+
+    position: absolute;
+
+    top: 22px;
+    left: 28px;
+
+    font-size: 18px;
+
+    opacity: .35;
+}
+
+.card::after {
+    content: "♥";
+
+    position: absolute;
+
+    bottom: 22px;
+    right: 28px;
+
+    font-size: 18px;
+
+    opacity: .35;
+}
+
+.name {
+    font-size: clamp(30px, 6vw, 45px);
+
+    font-weight: bold;
+
+    letter-spacing: 5px;
+
+    margin-bottom: 25px;
+
+    text-shadow:
+        0 4px 20px rgba(255,255,255,.3);
+}
+
+.divider {
+    width: 80px;
+    height: 1px;
+
+    margin: 0 auto 35px;
+
+    background: rgba(255,255,255,.8);
 }
 
 .message {
-    position: absolute;
-    font-size: 38px;
-    font-weight: bold;
-    text-shadow: 0 3px 15px rgba(0,0,0,.2);
+    font-size: 19px;
+
+    line-height: 2;
+
+    letter-spacing: 1px;
+
+    text-align: left;
+
+    white-space: pre-wrap;
+
+    color: rgba(255,255,255,.97);
+
+    word-break: break-word;
+}
+
+.signature {
+    margin-top: 45px;
+
+    font-size: 14px;
+
+    letter-spacing: 4px;
+
+    opacity: .7;
+}
+
+.heart {
+    position: fixed;
+
+    font-size: 27px;
+
+    opacity: .35;
+
+    pointer-events: none;
+
+    animation: float 6s infinite ease-in-out;
+}
+
+.heart:nth-child(1) {
+    top: 10%;
+    left: 8%;
+}
+
+.heart:nth-child(2) {
+    top: 20%;
+    right: 12%;
+
+    animation-delay: 1s;
+}
+
+.heart:nth-child(3) {
+    bottom: 15%;
+    left: 15%;
+
+    animation-delay: 2s;
+}
+
+.heart:nth-child(4) {
+    bottom: 20%;
+    right: 10%;
+
+    animation-delay: 3s;
 }
 
 .particle {
-    position: absolute;
-    font-size: 25px;
+    position: fixed;
+
+    font-size: 22px;
+
     pointer-events: none;
-    animation: explode 1.5s forwards;
+
+    animation: explode 1.8s ease-out forwards;
+
+    z-index: 20;
 }
 
-@keyframes float {
-    0%,100% {
+@keyframes fadeIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+
+    to {
+        opacity: 1;
         transform: translateY(0);
     }
+}
 
-    50% {
-        transform: translateY(-30px);
+@keyframes finalIn {
+
+    from {
+        opacity: 0;
+        transform: scale(.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
     }
 }
 
-@keyframes heart {
-    0%,100% {
+@keyframes heartbeat {
+
+    0%,
+    100% {
         transform: scale(1);
     }
 
+    15% {
+        transform: scale(1.12);
+    }
+
+    30% {
+        transform: scale(1);
+    }
+
+    45% {
+        transform: scale(1.08);
+    }
+
+    60% {
+        transform: scale(1);
+    }
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform:
+            translateY(0)
+            rotate(0deg);
+    }
+
     50% {
-        transform: scale(1.1);
+        transform:
+            translateY(-35px)
+            rotate(8deg);
     }
 }
 
 @keyframes explode {
-    from {
-        transform: translate(0,0) scale(1);
+
+    0% {
+        transform:
+            translate(0, 0)
+            scale(.5)
+            rotate(0deg);
+
         opacity: 1;
     }
 
-    to {
-        transform: translate(var(--x),var(--y)) scale(1.5);
+    100% {
+        transform:
+            translate(var(--x), var(--y))
+            scale(1.5)
+            rotate(180deg);
+
         opacity: 0;
     }
 }
 
 @media (max-width: 600px) {
-    .title {
-        font-size: 32px;
-    }
 
-    .text {
-        font-size: 17px;
-    }
-
-    button {
+    .start-button {
         width: 150px;
         height: 150px;
-        font-size: 30px;
     }
 
-    .big-heart {
-        font-size: 170px;
+    .card {
+        padding: 38px 25px;
+        border-radius: 25px;
     }
 
     .message {
-        font-size: 28px;
+        font-size: 17px;
+        line-height: 1.95;
+    }
+
+    .heart-symbol {
+        font-size: 75px;
     }
 }
 </style>
@@ -158,57 +420,157 @@ button:active {
 
 <div class="page">
 
-    <div id="start">
-        <div class="title">給最愛的唯希 ♥</div>
-        <div class="text">點擊開始</div>
-        <button onclick="start()">開始</button>
+    <div class="start" id="start">
+
+        <div class="small-title">
+            FOR YOU
+        </div>
+
+        <div class="title">
+            給最愛的唯希 ♥
+        </div>
+
+        <div class="subtitle">
+            有一段話，我想親口告訴你
+        </div>
+
+        <button class="start-button" onclick="start()">
+            點擊開啟
+        </button>
+
     </div>
 
-    <div class="heart" style="top:10%;left:10%;">♥</div>
-    <div class="heart" style="top:20%;right:15%;">♡</div>
-    <div class="heart" style="bottom:15%;left:20%;">♥</div>
-    <div class="heart" style="bottom:20%;right:10%;">♡</div>
+
+    <div class="heart">♥</div>
+    <div class="heart">♡</div>
+    <div class="heart">♥</div>
+    <div class="heart">♡</div>
+
 
     <div class="final" id="final">
-        <div class="big-heart">♥</div>
-        <div class="message">
-            廖唯希<br>
-            我愛你～
+
+        <div class="heart-symbol">
+            ♥
         </div>
+
+
+        <div class="card">
+
+            <div class="name">
+                廖唯希
+            </div>
+
+            <div class="divider"></div>
+
+
+            <!--
+            ==========================================
+            之後你的長篇文字直接放在這裡
+            ==========================================
+
+            可以寫很多很多字。
+
+            可以自由換行。
+
+            可以分成很多段。
+
+            不需要自己加 <br>。
+
+            網頁會自動處理長文字，
+            手機也可以直接往下滑。
+
+            ==========================================
+            -->
+
+            <div class="message">
+
+在這裡放你之後想對唯希說的所有話。
+
+這裡可以放非常長的文字。
+
+你可以慢慢寫。
+
+一段一段寫。
+
+不管內容有多少，
+這個區域都會自動往下延伸。
+
+之後只需要把這些預設文字全部刪掉，
+換成你真正想對她說的話就可以。
+
+            </div>
+
+
+            <div class="signature">
+                FOREVER · WITH YOU
+            </div>
+
+        </div>
+
     </div>
 
 </div>
 
+
 <script>
+
 function start() {
+
     document.getElementById("start").style.display = "none";
 
-    for (let i = 0; i < 40; i++) {
-        let p = document.createElement("div");
-
-        p.className = "particle";
-        p.innerHTML = Math.random() > 0.5 ? "♥" : "♡";
-
-        p.style.left = "50%";
-        p.style.top = "50%";
-
-        let x = (Math.random() - 0.5) * 600;
-        let y = (Math.random() - 0.5) * 600;
-
-        p.style.setProperty("--x", x + "px");
-        p.style.setProperty("--y", y + "px");
-
-        document.body.appendChild(p);
-
-        setTimeout(() => {
-            p.remove();
-        }, 1500);
-    }
+    createParticles();
 
     setTimeout(() => {
+
         document.getElementById("final").style.display = "flex";
-    }, 800);
+
+    }, 700);
 }
+
+
+function createParticles() {
+
+    for (let i = 0; i < 60; i++) {
+
+        const particle =
+            document.createElement("div");
+
+        particle.className = "particle";
+
+        particle.innerHTML =
+            Math.random() > 0.5
+                ? "♥"
+                : "♡";
+
+        particle.style.left = "50%";
+        particle.style.top = "50%";
+
+        const x =
+            (Math.random() - 0.5) * 900;
+
+        const y =
+            (Math.random() - 0.5) * 900;
+
+        particle.style.setProperty(
+            "--x",
+            x + "px"
+        );
+
+        particle.style.setProperty(
+            "--y",
+            y + "px"
+        );
+
+        document.body.appendChild(particle);
+
+        setTimeout(() => {
+
+            particle.remove();
+
+        }, 1800);
+    }
+}
+
 </script>
 
 </body>
