@@ -1,15 +1,15 @@
-<DOCTYPE html>
-<html lang="zh-TW>
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initialscale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>給廖唯希的驚喜</title>
 
 <style>
-*{
+* {
     box-sizing: border-box;
 }
-    
+
 body {
     margin: 0;
     height: 100vh;
@@ -42,13 +42,13 @@ body {
 }
 
 button {
-    widgh: 180px;
+    width: 180px;
     height: 180px;
     border-radius: 50%;
     border: 3px solid white;
     background: linear-gradient(145deg, #ffb8d5, #ff5f9d);
     color: white;
-    font_size: 35px;
+    font-size: 35px;
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 0 40px rgba(255,255,255,.5);
@@ -60,26 +60,42 @@ button:active {
 
 .heart {
     position: absolute;
+    font-size: 30px;
+    animation: float 5s infinite ease-in-out;
+    opacity: .7;
+}
+
+.final {
+    position: absolute;
     width: 100%;
     height: 100%;
     display: none;
-    justify-content: cen
+    justify-content: center;
     align-items: center;
     flex-direction: column;
 }
 
 .big-heart {
-    font_size: 220px
+    font-size: 220px;
     color: #ff4f91;
     text-shadow: 0 0 40px white;
     animation: heart 1s infinite;
 }
+
+.message {
+    position: absolute;
+    font-size: 38px;
+    font-weight: bold;
+    text-shadow: 0 3px 15px rgba(0,0,0,.2);
+}
+
 .particle {
     position: absolute;
     font-size: 25px;
     pointer-events: none;
     animation: explode 1.5s forwards;
 }
+
 @keyframes float {
     0%,100% {
         transform: translateY(0);
@@ -94,13 +110,14 @@ button:active {
     0%,100% {
         transform: scale(1);
     }
+
     50% {
         transform: scale(1.1);
     }
 }
 
 @keyframes explode {
-    from{
+    from {
         transform: translate(0,0) scale(1);
         opacity: 1;
     }
@@ -113,7 +130,7 @@ button:active {
 
 @media (max-width: 600px) {
     .title {
-        fort-size: 32px;
+        font-size: 32px;
     }
 
     .text {
@@ -127,15 +144,15 @@ button:active {
     }
 
     .big-heart {
-        font-size: 170p;
+        font-size: 170px;
     }
 
     .message {
         font-size: 28px;
     }
-} 
+}
 </style>
-<head>
+</head>
 
 <body>
 
@@ -156,21 +173,21 @@ button:active {
         <div class="big-heart">♥</div>
         <div class="message">
             廖唯希<br>
-            我愛你~
+            我愛你～
         </div>
     </div>
 
-<div>
+</div>
 
 <script>
 function start() {
     document.getElementById("start").style.display = "none";
 
     for (let i = 0; i < 40; i++) {
-        let p =document.createElement("div");
+        let p = document.createElement("div");
 
         p.className = "particle";
-        p.innerHTML = Math.random() > 0.5 ? "♥"
+        p.innerHTML = Math.random() > 0.5 ? "♥" : "♡";
 
         p.style.left = "50%";
         p.style.top = "50%";
@@ -178,20 +195,20 @@ function start() {
         let x = (Math.random() - 0.5) * 600;
         let y = (Math.random() - 0.5) * 600;
 
-        p.style.setProperty("--x", x + "px";
-        p.style.setProperty("--y", y + "px";
+        p.style.setProperty("--x", x + "px");
+        p.style.setProperty("--y", y + "px");
 
         document.body.appendChild(p);
-        
+
         setTimeout(() => {
             p.remove();
         }, 1500);
     }
 
-    setTimeout(()=> {
+    setTimeout(() => {
         document.getElementById("final").style.display = "flex";
     }, 800);
-}        
+}
 </script>
 
 </body>
